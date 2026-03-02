@@ -12,6 +12,7 @@
   "description": "",
   "dependencies": {
     "nodemon": "^3.1.14",
-    "websocket": "^1.0.35"
+    "websocket": "^1.0.35",
+    "ws": "^8.19.0"
   }
 }

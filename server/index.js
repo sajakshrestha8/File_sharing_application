@@ -1,23 +1,16 @@
-const http = require("http");
-const webSocket = require("websocket").server;
-let connection = null;
-
-const httpServer = http.createServer((req, res) => {
-  console.log("server created ");
-});
-
-const webSockert = new webSocket({
-  httpServer: httpServer,
-});
-
-webSockert.on("request", (request) => {
-  connection = request.accept(null, request.origin);
-  connection.on("onOpen", () => console.log("open"));
-
-  console.log(request);
-});
-console.log({ webSockert });
-
-httpServer.listen(8080, () =>
-  console.log("My server is listining in port 8080")
+const webSocket = require("ws");
+const websocket = new webSocket.Server({ port: 8080 }, () =>
+  console.log("server is running in port 8080")
 );
+
+websocket.on("connection", (ws) => {
+  console.log("ws server connect vayo");
+
+  ws.on("message", (msg) => {
+    const message = msg.toString(); // Buffer ma aaudo raixa texxt
+    console.log({ msg, message });
+    console.log("Received message: ", message);
+
+    ws.send("hello from server to client");
+  });
+});
