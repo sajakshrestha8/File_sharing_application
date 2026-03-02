@@ -7,7 +7,7 @@ websocket.on("connection", (ws) => {
   console.log("ws server connect vayo");
 
   ws.on("message", (msg) => {
-    const message = msg.toString(); // Buffer ma aaudo raixa texxt
+    const message = msg.toString(); // Buffer ma aaudo raixa text
     console.log({ msg, message });
     console.log("Received message: ", message);
 
