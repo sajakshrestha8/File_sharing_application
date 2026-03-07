@@ -1,4 +1,6 @@
 const webSocket = require("ws");
+const prisma = require("./connection/dbconnection");
+
 const websocket = new webSocket.Server({ port: 8080 }, () =>
   console.log("server is running in port 8080")
 );
