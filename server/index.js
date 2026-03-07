@@ -3,7 +3,9 @@ const websocket = new webSocket.Server({ port: 8080 }, () =>
   console.log("server is running in port 8080")
 );
 
+// room create gareko hai
 websocket.on("connection", (ws) => {
+  console.log(ws);
   console.log("ws server connect vayo");
 
   ws.on("message", (msg) => {

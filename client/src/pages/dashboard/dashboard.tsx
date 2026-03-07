@@ -1,6 +1,26 @@
+import { useEffect, useRef, useState } from "react";
 import "./dashboard.css";
 
 function Dashboard() {
+  const ws = useRef<WebSocket | null>(null);
+  const [message, setMessage] = useState<string>("");
+  const [responseFromServer, setResponseFromServer] = useState<string>("");
+
+  useEffect(() => {
+    // Initalize Websocket connection
+    ws.current = new WebSocket("ws://localhost:8080");
+
+    ws.current.onmessage = (event) => {
+      setResponseFromServer(event.data);
+    };
+  }, []);
+
+  const sendMessage = () => {
+    if (message.length <= 0) return;
+    ws.current?.send(message);
+    setMessage("");
+  };
+
   return (
     <div className="dashboard-container">
       <aside className="sidebar">
@@ -76,6 +96,21 @@ function Dashboard() {
             <div>Loading....</div>
           </div>
         </section>
+        <div>
+          <label htmlFor="message">Write a message for server</label>
+          <input
+            type="text"
+            placeholder="Write a message "
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+          <button onClick={sendMessage}>send</button>
+        </div>
+        <div>
+          <label htmlFor="responseFromServer">
+            The response from the server is: {responseFromServer}
+          </label>
+        </div>
       </main>
     </div>
   );
