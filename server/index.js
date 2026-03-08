@@ -2,6 +2,7 @@ const express = require("express");
 const webSocket = require("ws");
 const bcrypt = require("bcrypt");
 const prisma = require("./connection/dbconnection");
+const { randomUUID } = require("crypto");
 
 const app = express();
 const PORT = 8080;
@@ -16,7 +17,7 @@ app.post("/register", async (req, res) => {
       throw new Error(`All fields are required`);
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const registeredUser = await prisma.User.create({
+    const registeredUser = await prisma.user.create({
       data: { firstName, lastName, email, password: hashedPassword },
     });
     res.status(200).json({ success: true, registeredUser });
@@ -34,7 +35,7 @@ app.post("/login", async (req, res) => {
 
     if (!email || !password) throw new Error("All fields are required");
 
-    const user = await prisma.User.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email },
     });
 
@@ -55,6 +56,9 @@ app.post("/login", async (req, res) => {
 
 // web socket connection
 
+const rooms = new Map();
+console.log(rooms);
+
 const server = app.listen(PORT, () =>
   console.log("server is running in port 8080")
 );
@@ -63,14 +67,38 @@ const websocket = new webSocket.Server({ server });
 
 // room create gareko hai
 websocket.on("connection", (ws) => {
-  console.log(ws);
-  console.log("ws server connect vayo");
-
   ws.on("message", (msg) => {
-    const message = msg.toString(); // Buffer ma aaudo raixa text
-    console.log({ msg, message });
-    console.log("Received message: ", message);
+    const message = JSON.parse(msg);
 
-    ws.send("hello from server to client");
+    if (message.type === "createRoom") {
+      const createdRoomId = randomUUID();
+
+      ws.send(
+        JSON.stringify({
+          message: "Room created succcessfully",
+          roomId: createdRoomId,
+        })
+      );
+    }
+
+    console.log(message);
+
+    if (message.type === "join") {
+      const { roomId } = message;
+
+      if (!rooms.has(roomId)) {
+        rooms.set(roomId, new Set());
+      }
+
+      rooms.get(roomId).add(ws);
+
+      ws.roomId = roomId;
+
+      console.log(roomId, "Room Id");
+
+      ws.send(JSON.stringify({ message: `Joined room ${roomId}` }));
+    }
+
+    ws.send(JSON.stringify({ message: "hello from server to client" }));
   });
 });

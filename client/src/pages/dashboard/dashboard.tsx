@@ -5,20 +5,35 @@ function Dashboard() {
   const ws = useRef<WebSocket | null>(null);
   const [message, setMessage] = useState<string>("");
   const [responseFromServer, setResponseFromServer] = useState<string>("");
+  const [roomId, setRoomId] = useState<string | null>(null);
 
   useEffect(() => {
     // Initalize Websocket connection
     ws.current = new WebSocket("ws://localhost:8080");
 
     ws.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data?.roomId) {
+        setRoomId(data.roomId);
+      }
+      console.log(event);
       setResponseFromServer(event.data);
     };
   }, []);
 
   const sendMessage = () => {
     if (message.length <= 0) return;
-    ws.current?.send(message);
+    ws.current?.send(JSON.stringify({ type: "join", message, roomId }));
     setMessage("");
+  };
+
+  const handleCreateRoom = () => {
+    ws.current?.send(
+      JSON.stringify({
+        type: "createRoom",
+        message: "Please I want to create room with you",
+      })
+    );
   };
 
   return (
@@ -110,6 +125,9 @@ function Dashboard() {
           <label htmlFor="responseFromServer">
             The response from the server is: {responseFromServer}
           </label>
+        </div>
+        <div>
+          <button onClick={handleCreateRoom}>Create room</button>
         </div>
       </main>
     </div>
