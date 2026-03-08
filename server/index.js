@@ -105,7 +105,7 @@ websocket.on("connection", (ws) => {
         const socket = sockets[userId];
         console.log({ socket });
         console.log(message);
-        if (socket) {
+        if (socket && socket.readyState === 1) {
           socket.send(
             JSON.stringify({
               type: "message",

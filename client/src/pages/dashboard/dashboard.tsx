@@ -7,6 +7,9 @@ function Dashboard() {
   const [message, setMessage] = useState<string>("");
   const [responseFromServer, setResponseFromServer] = useState<string>("");
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [isSending, setIsSending] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,13 +33,52 @@ function Dashboard() {
     setMessage("");
   };
 
-  const handleCreateRoom = () => {
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log(e.target.files, "File targets");
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    console.log({ selectedFile });
+
+    if (selectedFile?.size > 50 * 1024 * 1024) {
+      alert("File size exceeds 50MB limit");
+      return;
+    }
+
+    setFile(selectedFile);
+  };
+
+  const sendFile = () => {
+    console.log(roomId);
+    if (!roomId) {
+      ws.current?.send(
+        JSON.stringify({
+          type: "createRoom",
+          message: "Please I want to create room with you",
+        })
+      );
+    }
+
+    if (!file) return;
+    setIsSending(true);
+
+    const CHUNK_SIZE = 64 * 1024;
+    const totalChuncks = Math.ceil(file.size / CHUNK_SIZE);
+    const fileId = crypto.randomUUID();
+    let chuckIndex = 0;
+
     ws.current?.send(
       JSON.stringify({
-        type: "createRoom",
-        message: "Please I want to create room with you",
+        type: "file-meta",
+        roomId,
+        fileId,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        totalChuncks,
       })
     );
+
+    console.log("File is about to take off mannnnnnnnnnn");
   };
 
   return (
@@ -51,20 +93,7 @@ function Dashboard() {
           <label>Active Room</label>
           <div className="room-badge"># Global-Share</div>
         </div>
-        <nav className="sidebar-nav">
-          <p>Connected Peers</p>
-          <ul>
-            <li>
-              <span className="dot online"></span> User_882 (You)
-            </li>
-            <li>
-              <span className="dot online"></span> Sarah_Dev
-            </li>
-            <li>
-              <span className="dot offline"></span> Mike_Ross
-            </li>
-          </ul>
-        </nav>
+        <nav className="sidebar-nav"></nav>
       </aside>
 
       {/* Main Content */}
@@ -79,12 +108,62 @@ function Dashboard() {
         <section className="dashboard-grid">
           {/* Upload Area */}
           <div className="upload-card">
-            <div className="dropzone">
-              <div className="icon">📂</div>
-              <h3>Click or Drag to Upload</h3>
-              <p>Supports Any File (Max 50MB for WebSockets)</p>
-              <input type="file" className="file-input" />
-            </div>
+            {file ? (
+              <div
+                style={{
+                  marginTop: "1rem",
+                  padding: "1rem",
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                }}
+              >
+                <p>
+                  📄 <strong>{file.name}</strong>
+                </p>
+                <p style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                  {(file.size / 1024).toFixed(1)} KB •{" "}
+                  {file.type || "Unknown type"}
+                </p>
+
+                {isSending && (
+                  <div>
+                    <div
+                      className="progress-mini"
+                      style={{ marginTop: "0.5rem" }}
+                    >
+                      <div
+                        className="progress-fill"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <p style={{ fontSize: "0.75rem" }}>
+                      {uploadProgress}% uploaded
+                    </p>
+                  </div>
+                )}
+
+                {!isSending && (
+                  <button
+                    className="btn-primary"
+                    onClick={sendFile}
+                    disabled={isSending}
+                  >
+                    Share file
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="dropzone">
+                <div className="icon">📂</div>
+                <h3>Click or Drag to Upload</h3>
+                <p>Supports Any File (Max 50MB for WebSockets)</p>
+                <input
+                  type="file"
+                  className="file-input"
+                  onChange={(e) => handleFileInput(e)}
+                />
+              </div>
+            )}
           </div>
 
           {/* Activity/Transfer Feed */}
@@ -128,9 +207,6 @@ function Dashboard() {
           <label htmlFor="responseFromServer">
             The response from the server is: {responseFromServer}
           </label>
-        </div>
-        <div>
-          <button onClick={handleCreateRoom}>Create room</button>
         </div>
       </main>
     </div>
