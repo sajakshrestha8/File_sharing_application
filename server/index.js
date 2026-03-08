@@ -3,6 +3,9 @@ const webSocket = require("ws");
 const bcrypt = require("bcrypt");
 const prisma = require("./connection/dbconnection");
 const { randomUUID } = require("crypto");
+const redisClient = require("./redisClient/redisClient");
+
+console.log(redisClient, "Yo po ho class");
 
 const app = express();
 const PORT = 8080;
@@ -57,7 +60,9 @@ app.post("/login", async (req, res) => {
 // web socket connection
 
 const rooms = new Map();
-console.log(rooms);
+const sockets = {};
+
+console.log({ sockets });
 
 const server = app.listen(PORT, () =>
   console.log("server is running in port 8080")
@@ -67,11 +72,16 @@ const websocket = new webSocket.Server({ server });
 
 // room create gareko hai
 websocket.on("connection", (ws) => {
-  ws.on("message", (msg) => {
+  ws.id = randomUUID();
+
+  ws.on("message", async (msg) => {
     const message = JSON.parse(msg);
 
     if (message.type === "createRoom") {
       const createdRoomId = randomUUID();
+      console.log({ createdRoomId });
+
+      await redisClient.sAdd("rooms", createdRoomId);
 
       ws.send(
         JSON.stringify({
@@ -81,24 +91,30 @@ websocket.on("connection", (ws) => {
       );
     }
 
-    console.log(message);
-
     if (message.type === "join") {
-      const { roomId } = message;
+      await redisClient.sAdd(`room:${message.roomId}`, ws.id);
 
-      if (!rooms.has(roomId)) {
-        rooms.set(roomId, new Set());
-      }
-
-      rooms.get(roomId).add(ws);
-
-      ws.roomId = roomId;
-
-      console.log(roomId, "Room Id");
-
-      ws.send(JSON.stringify({ message: `Joined room ${roomId}` }));
+      sockets[ws.id] = ws;
     }
 
-    ws.send(JSON.stringify({ message: "hello from server to client" }));
+    if (message.type === "message") {
+      const users = await redisClient.sMembers(`room:${message.roomId}`);
+      console.log({ users });
+
+      users.forEach((userId) => {
+        const socket = sockets[userId];
+        console.log({ socket });
+        console.log(message);
+        if (socket) {
+          socket.send(
+            JSON.stringify({
+              type: "message",
+              message: message.message,
+              from: ws.id,
+            })
+          );
+        }
+      });
+    }
   });
 });

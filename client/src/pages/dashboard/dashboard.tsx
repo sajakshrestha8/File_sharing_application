@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import "./dashboard.css";
+import { useNavigate } from "react-router-dom";
 
 function Dashboard() {
   const ws = useRef<WebSocket | null>(null);
   const [message, setMessage] = useState<string>("");
   const [responseFromServer, setResponseFromServer] = useState<string>("");
   const [roomId, setRoomId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Initalize Websocket connection
@@ -15,11 +17,12 @@ function Dashboard() {
       const data = JSON.parse(event.data);
       if (data?.roomId) {
         setRoomId(data.roomId);
+        navigate(`/${data.roomId}`);
       }
       console.log(event);
-      setResponseFromServer(event.data);
+      setResponseFromServer(data.message || JSON.stringify(data));
     };
-  }, []);
+  }, [navigate, roomId]);
 
   const sendMessage = () => {
     if (message.length <= 0) return;
