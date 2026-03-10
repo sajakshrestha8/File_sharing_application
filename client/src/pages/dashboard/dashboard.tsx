@@ -20,7 +20,6 @@ function Dashboard() {
       const data = JSON.parse(event.data);
       if (data?.roomId) {
         setRoomId(data.roomId);
-        navigate(`/${data.roomId}`);
       }
       console.log(event);
       setResponseFromServer(data.message || JSON.stringify(data));
@@ -64,7 +63,7 @@ function Dashboard() {
     const CHUNK_SIZE = 64 * 1024;
     const totalChuncks = Math.ceil(file.size / CHUNK_SIZE);
     const fileId = crypto.randomUUID();
-    let chuckIndex = 0;
+    let currentChunck = 0;
 
     ws.current?.send(
       JSON.stringify({
@@ -78,7 +77,48 @@ function Dashboard() {
       })
     );
 
+    const readFileChuck = () => {
+      const start = currentChunck * CHUNK_SIZE;
+      const end = Math.min(file.size, start + CHUNK_SIZE);
+      const blob = file.slice(start, end);
+
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const buffer = e.target?.result;
+
+        if (!(buffer instanceof ArrayBuffer)) return;
+
+        console.log(ws.current, "Websocket vitra k k po xa hora yrr");
+
+        if (ws.current?.readyState !== WebSocket.OPEN) {
+          console.log("WebSocket not open");
+          return;
+        }
+
+        ws.current.send(buffer);
+
+        currentChunck++;
+
+        const progress = Math.round((currentChunck / totalChuncks) * 100);
+        setUploadProgress(progress);
+
+        if (currentChunck < totalChuncks) {
+          readFileChuck();
+        } else {
+          console.log("File transfer completed");
+          setIsSending(false);
+        }
+      };
+
+      reader.readAsArrayBuffer(blob);
+    };
+
+    readFileChuck();
+
     console.log("File is about to take off mannnnnnnnnnn");
+
+    // navigate(`/${roomId}`);
   };
 
   return (

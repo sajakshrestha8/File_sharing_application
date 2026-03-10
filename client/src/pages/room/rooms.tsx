@@ -11,6 +11,8 @@ function Room() {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
+    if (ws.current) return;
+
     ws.current = new WebSocket("ws://localhost:8080");
 
     ws.current.onopen = () => {
@@ -26,7 +28,6 @@ function Room() {
 
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log({ data });
 
       if (data.type === "message") {
         setMessages((prev) => [...prev, data.message]);
@@ -34,12 +35,12 @@ function Room() {
     };
 
     ws.current.onclose = () => {
-      console.log("Disconnected from server");
       setConnected(false);
     };
 
     return () => {
       ws.current?.close();
+      ws.current = null;
     };
   }, [roomId]);
 

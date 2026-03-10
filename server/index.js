@@ -72,6 +72,7 @@ const websocket = new webSocket.Server({ server });
 
 // room create gareko hai
 websocket.on("connection", (ws) => {
+  console.log("websocket connectio ta vairako nai xa ta hajur");
   ws.id = randomUUID();
 
   ws.on("message", async (msg) => {
