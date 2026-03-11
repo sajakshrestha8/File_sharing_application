@@ -4,6 +4,8 @@ const bcrypt = require("bcrypt");
 const prisma = require("./connection/dbconnection");
 const { randomUUID } = require("crypto");
 const redisClient = require("./redisClient/redisClient");
+const fs = require("fs");
+const multer = require("multer");
 
 console.log(redisClient, "Yo po ho class");
 
@@ -57,10 +59,19 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.get("/files/:id", (req, res) => {
+  const fileId = req.params.id;
+
+  const filePath = getFilePathFromDB(fileId);
+
+  res.download(filePath);
+});
+
 // web socket connection
 
 const rooms = new Map();
 const sockets = {};
+const fileStreams = {};
 
 console.log({ sockets });
 
@@ -75,18 +86,41 @@ websocket.on("connection", (ws) => {
   console.log("websocket connectio ta vairako nai xa ta hajur");
   ws.id = randomUUID();
 
-  ws.on("message", async (msg) => {
-    const message = JSON.parse(msg);
+  ws.on("message", async (msg, isBinary) => {
+    let message;
+
+    if (!isBinary) {
+      message = JSON.parse(msg);
+      console.log(message, "MSG");
+
+      if (message.type === "file-meta") {
+        const filePath = `./uploadedFiles/${message.fileId}-${message.fileName}`;
+
+        fileStreams[message.fileId] = fs.createWriteStream(filePath);
+
+        ws.fileId = message.fileId;
+        ws.filePath = filePath;
+
+        return;
+      }
+    }
+
+    if (isBinary && ws.fileId) {
+      fileStreams[ws.fileId].write(msg);
+    }
+
+    if (!message) return;
+
+    console.log(message, "message");
 
     if (message.type === "createRoom") {
       const createdRoomId = randomUUID();
-      console.log({ createdRoomId });
 
       await redisClient.sAdd("rooms", createdRoomId);
 
       ws.send(
         JSON.stringify({
-          message: "Room created succcessfully",
+          message: "Room created successfully",
           roomId: createdRoomId,
         })
       );
@@ -94,18 +128,15 @@ websocket.on("connection", (ws) => {
 
     if (message.type === "join") {
       await redisClient.sAdd(`room:${message.roomId}`, ws.id);
-
       sockets[ws.id] = ws;
     }
 
     if (message.type === "message") {
       const users = await redisClient.sMembers(`room:${message.roomId}`);
-      console.log({ users });
 
       users.forEach((userId) => {
         const socket = sockets[userId];
-        console.log({ socket });
-        console.log(message);
+
         if (socket && socket.readyState === 1) {
           socket.send(
             JSON.stringify({

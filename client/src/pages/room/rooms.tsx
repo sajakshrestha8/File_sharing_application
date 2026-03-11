@@ -1,123 +1,144 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import "./room.css";
+
+interface ChatMessage {
+  id: string;
+  message: string;
+  fileLink?: string;
+  from?: string;
+}
 
 function Room() {
   const { roomId } = useParams();
-
-  const ws = useRef<WebSocket | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    if (ws.current) return;
+    const ws = new WebSocket("ws://localhost:8080");
+    wsRef.current = ws;
 
-    ws.current = new WebSocket("ws://localhost:8080");
-
-    ws.current.onopen = () => {
+    ws.onopen = () => {
+      console.log("WebSocket connected");
       setConnected(true);
-
-      ws.current?.send(
-        JSON.stringify({
-          type: "join",
-          roomId: roomId,
-        })
-      );
+      ws.send(JSON.stringify({ type: "join", roomId }));
     };
 
-    ws.current.onmessage = (event) => {
+    ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
       if (data.type === "message") {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), message: data.message, from: data.from },
+        ]);
+      }
+
+      if (data.type === "file-uploaded") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            message: data.fileName || `File uploaded: ${data.link}`,
+            fileLink: data.link,
+            from: data.from,
+          },
+        ]);
       }
     };
 
-    ws.current.onclose = () => {
+    ws.onerror = (err) => console.error("WebSocket error:", err);
+    ws.onclose = () => {
+      console.log("WebSocket disconnected");
       setConnected(false);
     };
 
-    return () => {
-      ws.current?.close();
-      ws.current = null;
-    };
+    return () => ws.close();
   }, [roomId]);
 
   const sendMessage = () => {
-    if (!message.trim()) return;
+    if (!message.trim() || !wsRef.current) return;
+    if (wsRef.current.readyState !== WebSocket.OPEN) {
+      console.warn("WebSocket not connected");
+      return;
+    }
 
-    ws.current?.send(
-      JSON.stringify({
-        type: "message",
-        roomId: roomId,
-        message: message,
-      })
-    );
-
+    wsRef.current.send(JSON.stringify({ type: "message", roomId, message }));
+    setMessages((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), message, from: "You" },
+    ]);
     setMessage("");
   };
 
+  const copyRoomLink = async () => {
+    await navigator.clipboard.writeText(window.location.href);
+    alert("Room link copied!");
+  };
+
   return (
-    <div style={{ padding: "40px", fontFamily: "Arial" }}>
-      <h2>Room: {roomId}</h2>
+    <div className="room-container">
+      {/* Header */}
+      <header className="room-header">
+        <div>
+          <h2>Room Chat</h2>
+          <p className="room-id">ID: {roomId}</p>
+        </div>
 
-      <p>
-        Status:{" "}
-        {connected ? (
-          <span style={{ color: "green" }}>Connected</span>
-        ) : (
-          <span style={{ color: "red" }}>Disconnected</span>
+        <div className="room-actions">
+          <button onClick={copyRoomLink}>Copy Link</button>
+          <span className={`status ${connected ? "online" : "offline"}`}>
+            {connected ? "Connected" : "Disconnected"}
+          </span>
+        </div>
+      </header>
+
+      {/* Chat Messages */}
+      <div className="chat-container">
+        {messages.length === 0 && (
+          <div className="empty-state">
+            <p>No messages yet</p>
+            <span>Start the conversation 👋</span>
+          </div>
         )}
-      </p>
 
-      <div
-        style={{
-          border: "1px solid #ccc",
-          height: "300px",
-          overflowY: "auto",
-          padding: "10px",
-          marginBottom: "20px",
-        }}
-      >
-        {messages.length === 0 && <p>No messages yet</p>}
-
-        {messages.map((msg, index) => (
+        {messages.map((msg) => (
           <div
-            key={index}
-            style={{
-              padding: "6px",
-              marginBottom: "6px",
-              background: "#f1f1f1",
-              borderRadius: "6px",
-            }}
+            key={msg.id}
+            className={`message ${msg.from === "You" ? "sent" : "received"}`}
           >
-            {msg}
+            <div className="message-content">
+              <span className="message-text">{msg.message}</span>
+              {msg.fileLink && (
+                <a
+                  href={msg.fileLink}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  className="file-link"
+                >
+                  📎 Download
+                </a>
+              )}
+            </div>
+            <div className="message-from">{msg.from}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: "10px" }}>
+      {/* Input Area */}
+      <div className="input-container">
         <input
           type="text"
-          placeholder="Write message..."
+          placeholder="Write a message..."
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          style={{
-            flex: 1,
-            padding: "10px",
-          }}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
-
-        <button
-          onClick={sendMessage}
-          style={{
-            padding: "10px 20px",
-            cursor: "pointer",
-          }}
-        >
-          Send
-        </button>
+        <button onClick={sendMessage}>Send</button>
       </div>
     </div>
   );

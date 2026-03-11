@@ -10,6 +10,7 @@ function Dashboard() {
   const [file, setFile] = useState<File | null>(null);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,11 +21,12 @@ function Dashboard() {
       const data = JSON.parse(event.data);
       if (data?.roomId) {
         setRoomId(data.roomId);
+        navigate(`/${data.roomId}`);
       }
       console.log(event);
       setResponseFromServer(data.message || JSON.stringify(data));
     };
-  }, [navigate, roomId]);
+  }, []);
 
   const sendMessage = () => {
     if (message.length <= 0) return;
@@ -65,17 +67,19 @@ function Dashboard() {
     const fileId = crypto.randomUUID();
     let currentChunck = 0;
 
-    ws.current?.send(
-      JSON.stringify({
-        type: "file-meta",
-        roomId,
-        fileId,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        totalChuncks,
-      })
-    );
+    if (ws.current?.readyState === 1) {
+      ws.current?.send(
+        JSON.stringify({
+          type: "file-meta",
+          roomId,
+          fileId,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          totalChuncks,
+        })
+      );
+    }
 
     const readFileChuck = () => {
       const start = currentChunck * CHUNK_SIZE;
@@ -91,12 +95,22 @@ function Dashboard() {
 
         console.log(ws.current, "Websocket vitra k k po xa hora yrr");
 
+        console.log(
+          ws.current?.readyState,
+          "Ready state 1 vaye open 0 vaye close"
+        );
         if (ws.current?.readyState !== WebSocket.OPEN) {
           console.log("WebSocket not open");
           return;
         }
 
-        ws.current.send(buffer);
+        ws.current.send(
+          JSON.stringify({
+            type: "file-chunk",
+            fileId,
+            chunk: buffer,
+          })
+        );
 
         currentChunck++;
 
@@ -106,6 +120,14 @@ function Dashboard() {
         if (currentChunck < totalChuncks) {
           readFileChuck();
         } else {
+          const link = `http://localhost:3000/uploadedFiles/${fileId}`;
+
+          ws.current.send(
+            JSON.stringify({
+              type: "file-uploaded",
+              link,
+            })
+          );
           console.log("File transfer completed");
           setIsSending(false);
         }
@@ -117,8 +139,6 @@ function Dashboard() {
     readFileChuck();
 
     console.log("File is about to take off mannnnnnnnnnn");
-
-    // navigate(`/${roomId}`);
   };
 
   return (
