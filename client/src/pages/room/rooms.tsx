@@ -16,6 +16,16 @@ function Room() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connected, setConnected] = useState(false);
+  const [incomingFileMeta, setIncomingFileMeta] = useState<{
+    fileId: string;
+    fileName: string;
+    fileType: string;
+    totalChunks: number;
+  } | null>(null);
+  const [receivedChunks, setReceivedChunks] = useState<ArrayBuffer[]>([]);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadFileName, setDownloadFileName] = useState<string>("");
+  const [receiveProgress, setReceiveProgress] = useState(0);
 
   useEffect(() => {
     const ws = new WebSocket("ws://localhost:8080");
@@ -28,25 +38,34 @@ function Room() {
     };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.type === "message") {
-        setMessages((prev) => [
-          ...prev,
-          { id: crypto.randomUUID(), message: data.message, from: data.from },
-        ]);
+      if (event.data instanceof Blob) {
+        event.data.arrayBuffer().then((buffer) => {
+          setReceivedChunks((prev) => {
+            const updated = [...prev, buffer];
+            if (incomingFileMeta) {
+              setReceiveProgress(
+                Math.round(
+                  (updated.length / incomingFileMeta.totalChunks) * 100
+                )
+              );
+            }
+            return updated;
+          });
+        });
+        return;
       }
 
-      if (data.type === "file-uploaded") {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            message: data.fileName || `File uploaded: ${data.link}`,
-            fileLink: data.link,
-            from: data.from,
-          },
-        ]);
+      const data = JSON.parse(event.data);
+
+      if (data.type === "file-meta") {
+        setIncomingFileMeta(data);
+        setReceivedChunks([]);
+        setReceiveProgress(0);
+      }
+
+      if (data.type === "file-ready") {
+        setDownloadUrl(data.downloadUrl);
+        setDownloadFileName(data.fileName);
       }
     };
 
@@ -105,29 +124,35 @@ function Room() {
           </div>
         )}
 
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`message ${msg.from === "You" ? "sent" : "received"}`}
-          >
-            <div className="message-content">
-              <span className="message-text">{msg.message}</span>
-              {msg.fileLink && (
-                <a
-                  href={msg.fileLink}
-                  download
-                  target="_blank"
-                  rel="noreferrer"
-                  className="file-link"
-                >
-                  📎 Download
-                </a>
-              )}
+        {downloadUrl && (
+          <div className="feed-item">
+            <div className="file-icon">📥</div>
+            <div className="file-info">
+              <span className="file-name">{downloadFileName}</span>
+              <span className="file-meta">Ready to download</span>
             </div>
-            <div className="message-from">{msg.from}</div>
+            <a
+              href={downloadUrl}
+              download={downloadFileName}
+              className="btn-download"
+            >
+              Download
+            </a>
           </div>
-        ))}
+        )}
       </div>
+
+      {receiveProgress > 0 && receiveProgress < 100 && (
+        <div>
+          <p>Receiving file... {receiveProgress}%</p>
+          <div className="progress-mini">
+            <div
+              className="progress-fill"
+              style={{ width: `${receiveProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Input Area */}
       <div className="input-container">

@@ -19,8 +19,13 @@ function Dashboard() {
 
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
+
+      console.log(data, "Data ma k aauxa");
       if (data?.roomId) {
         setRoomId(data.roomId);
+      }
+
+      if (data?.type === "file-complete-ack") {
         navigate(`/${data.roomId}`);
       }
       console.log(event);
@@ -49,97 +54,86 @@ function Dashboard() {
   };
 
   const sendFile = () => {
-    console.log(roomId);
+    if (!file) return;
+
     if (!roomId) {
       ws.current?.send(
         JSON.stringify({
           type: "createRoom",
-          message: "Please I want to create room with you",
+          message: "Creating room for file share",
         })
       );
+      return;
     }
 
+    startSendingFile(roomId);
+  };
+
+  const startSendingFile = (currentRoomId: string) => {
     if (!file) return;
     setIsSending(true);
 
     const CHUNK_SIZE = 64 * 1024;
-    const totalChuncks = Math.ceil(file.size / CHUNK_SIZE);
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     const fileId = crypto.randomUUID();
-    let currentChunck = 0;
+    let currentChunk = 0;
 
-    if (ws.current?.readyState === 1) {
-      ws.current?.send(
-        JSON.stringify({
-          type: "file-meta",
-          roomId,
-          fileId,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          totalChuncks,
-        })
-      );
-    }
+    ws.current?.send(
+      JSON.stringify({
+        type: "file-meta",
+        roomId: currentRoomId,
+        fileId,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        totalChunks,
+      })
+    );
 
-    const readFileChuck = () => {
-      const start = currentChunck * CHUNK_SIZE;
+    const readNextChunk = () => {
+      const start = currentChunk * CHUNK_SIZE;
       const end = Math.min(file.size, start + CHUNK_SIZE);
       const blob = file.slice(start, end);
-
       const reader = new FileReader();
 
       reader.onload = (e) => {
         const buffer = e.target?.result;
-
         if (!(buffer instanceof ArrayBuffer)) return;
+        if (ws.current?.readyState !== WebSocket.OPEN) return;
 
-        console.log(ws.current, "Websocket vitra k k po xa hora yrr");
+        ws.current.send(buffer);
 
-        console.log(
-          ws.current?.readyState,
-          "Ready state 1 vaye open 0 vaye close"
-        );
-        if (ws.current?.readyState !== WebSocket.OPEN) {
-          console.log("WebSocket not open");
-          return;
-        }
+        currentChunk++;
+        setUploadProgress(Math.round((currentChunk / totalChunks) * 100));
 
-        ws.current.send(
-          JSON.stringify({
-            type: "file-chunk",
-            fileId,
-            chunk: buffer,
-          })
-        );
-
-        currentChunck++;
-
-        const progress = Math.round((currentChunck / totalChuncks) * 100);
-        setUploadProgress(progress);
-
-        if (currentChunck < totalChuncks) {
-          readFileChuck();
+        if (currentChunk < totalChunks) {
+          readNextChunk();
         } else {
-          const link = `http://localhost:3000/uploadedFiles/${fileId}`;
-
           ws.current.send(
             JSON.stringify({
-              type: "file-uploaded",
-              link,
+              type: "file-complete",
+              fileId,
+              roomId: currentRoomId,
+              fileName: file.name,
+              fileType: file.type,
             })
           );
-          console.log("File transfer completed");
           setIsSending(false);
+          setUploadProgress(0);
         }
       };
 
       reader.readAsArrayBuffer(blob);
     };
 
-    readFileChuck();
-
-    console.log("File is about to take off mannnnnnnnnnn");
+    readNextChunk();
   };
+
+  useEffect(() => {
+    if (roomId && file && !isSending) {
+      startSendingFile(roomId);
+    }
+  }, [roomId]);
 
   return (
     <div className="dashboard-container">

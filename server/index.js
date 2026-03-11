@@ -96,11 +96,20 @@ websocket.on("connection", (ws) => {
       if (message.type === "file-meta") {
         const filePath = `./uploadedFiles/${message.fileId}-${message.fileName}`;
 
+        ws.fileId = message.fileId;
+        ws.roomId = message.roomId;
+        ws.totalChunks = message.totalChunks;
+        ws.receivedChunks = 0;
+
         fileStreams[message.fileId] = fs.createWriteStream(filePath);
 
-        ws.fileId = message.fileId;
-        ws.filePath = filePath;
-
+        const users = await redisClient.sMembers(`room:${message.roomId}`);
+        users.forEach((userId) => {
+          const socket = sockets[userId];
+          if (socket && socket.readyState === 1 && userId !== ws.id) {
+            socket.send(JSON.stringify(message));
+          }
+        });
         return;
       }
     }
@@ -147,6 +156,36 @@ websocket.on("connection", (ws) => {
           );
         }
       });
+    }
+
+    if (message.type === "file-complete") {
+      const filePath = `./uploadedFiles/${message.fileId}-${message.fileName}`;
+
+      ws.send(
+        JSON.stringify({
+          type: "file-complete-ack",
+          roomId: message.roomId,
+          fileId: message.fileId,
+        })
+      );
+
+      const users = await redisClient.sMembers(`room:${message.roomId}`);
+      users.forEach((userId) => {
+        const socket = sockets[userId];
+
+        if (socket && socket.readyState === 1 && userId !== ws.id) {
+          socket.send(
+            JSON.stringify({
+              type: "file-ready",
+              fileId: message.fileId,
+              fileName: message.fileName,
+              fileType: message.fileType,
+              downloadUrl: `http://localhost:8080/files/${message.fileId}-${message.fileName}`,
+            })
+          );
+        }
+      });
+      return;
     }
   });
 });
