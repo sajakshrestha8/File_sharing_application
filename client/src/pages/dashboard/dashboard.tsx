@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import "./dashboard.css";
 import { useNavigate } from "react-router-dom";
+import { useWebSocket } from "../../context/websocket.context";
 
 function Dashboard() {
-  const ws = useRef<WebSocket | null>(null);
+  const { ws, isReady } = useWebSocket();
   const [message, setMessage] = useState<string>("");
   const [responseFromServer, setResponseFromServer] = useState<string>("");
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -15,8 +16,10 @@ function Dashboard() {
 
   useEffect(() => {
     // Initalize Websocket connection
-    ws.current = new WebSocket("ws://localhost:8080");
+    console.log(ws);
+    if (!isReady || !ws.current) return;
 
+    console.log("useEffect lamo");
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
@@ -31,10 +34,10 @@ function Dashboard() {
       console.log(event);
       setResponseFromServer(data.message || JSON.stringify(data));
     };
-  }, []);
+  }, [isReady]);
 
   const sendMessage = () => {
-    if (message.length <= 0) return;
+    if (message.length <= 0 || !ws) return;
     ws.current?.send(JSON.stringify({ type: "join", message, roomId }));
     setMessage("");
   };
@@ -54,7 +57,12 @@ function Dashboard() {
   };
 
   const sendFile = () => {
-    if (!file) return;
+    console.log(ws);
+    if (!file || !ws) return;
+
+    console.log("ws ta xa hai useParams");
+
+    console.log(roomId, "Room id nai xain ki k ho vanesi ta");
 
     if (!roomId) {
       ws.current?.send(
@@ -70,6 +78,7 @@ function Dashboard() {
   };
 
   const startSendingFile = (currentRoomId: string) => {
+    console.log(file, "File xa ki xaina");
     if (!file) return;
     setIsSending(true);
 
@@ -77,6 +86,8 @@ function Dashboard() {
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
     const fileId = crypto.randomUUID();
     let currentChunk = 0;
+
+    if (!ws) return;
 
     ws.current?.send(
       JSON.stringify({
@@ -104,6 +115,7 @@ function Dashboard() {
         ws.current.send(buffer);
 
         currentChunk++;
+
         setUploadProgress(Math.round((currentChunk / totalChunks) * 100));
 
         if (currentChunk < totalChunks) {

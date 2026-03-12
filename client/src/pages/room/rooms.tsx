@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import "./room.css";
+import { useWebSocket } from "../../context/websocket.context";
 
 interface ChatMessage {
   id: string;
@@ -11,7 +12,7 @@ interface ChatMessage {
 
 function Room() {
   const { roomId } = useParams();
-  const wsRef = useRef<WebSocket | null>(null);
+  const { ws, isReady } = useWebSocket();
 
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -28,16 +29,15 @@ function Room() {
   const [receiveProgress, setReceiveProgress] = useState(0);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8080");
-    wsRef.current = ws;
+    if (!isReady || !ws.current) return;
 
-    ws.onopen = () => {
+    ws.current.onopen = () => {
       console.log("WebSocket connected");
       setConnected(true);
       ws.send(JSON.stringify({ type: "join", roomId }));
     };
 
-    ws.onmessage = (event) => {
+    ws.current.onmessage = (event) => {
       if (event.data instanceof Blob) {
         event.data.arrayBuffer().then((buffer) => {
           setReceivedChunks((prev) => {
@@ -63,29 +63,31 @@ function Room() {
         setReceiveProgress(0);
       }
 
+      console.log(data, "data ma type k aairaxa ra lamo");
       if (data.type === "file-ready") {
         setDownloadUrl(data.downloadUrl);
         setDownloadFileName(data.fileName);
       }
     };
 
-    ws.onerror = (err) => console.error("WebSocket error:", err);
-    ws.onclose = () => {
+    ws.current.onerror = (err) => console.error("WebSocket error:", err);
+    ws.current.onclose = () => {
       console.log("WebSocket disconnected");
       setConnected(false);
     };
 
-    return () => ws.close();
+    const currentWs = ws.current;
+    return () => currentWs?.close();
   }, [roomId]);
 
   const sendMessage = () => {
-    if (!message.trim() || !wsRef.current) return;
-    if (wsRef.current.readyState !== WebSocket.OPEN) {
+    if (!message.trim() || !ws?.current) return;
+    if (ws.current.readyState !== WebSocket.OPEN) {
       console.warn("WebSocket not connected");
       return;
     }
 
-    wsRef.current.send(JSON.stringify({ type: "message", roomId, message }));
+    ws.current.send(JSON.stringify({ type: "message", roomId, message }));
     setMessages((prev) => [
       ...prev,
       { id: crypto.randomUUID(), message, from: "You" },

@@ -126,6 +126,7 @@ websocket.on("connection", (ws) => {
       const createdRoomId = randomUUID();
 
       await redisClient.sAdd("rooms", createdRoomId);
+      await redisClient.sAdd(`room:${createdRoomId}`, ws.id);
 
       ws.send(
         JSON.stringify({
@@ -161,30 +162,54 @@ websocket.on("connection", (ws) => {
     if (message.type === "file-complete") {
       const filePath = `./uploadedFiles/${message.fileId}-${message.fileName}`;
 
-      ws.send(
-        JSON.stringify({
-          type: "file-complete-ack",
-          roomId: message.roomId,
-          fileId: message.fileId,
-        })
-      );
-
-      const users = await redisClient.sMembers(`room:${message.roomId}`);
-      users.forEach((userId) => {
-        const socket = sockets[userId];
-
-        if (socket && socket.readyState === 1 && userId !== ws.id) {
-          socket.send(
+      const stream = fileStreams[message.fileId];
+      if (stream) {
+        stream.end(async () => {
+          ws.send(
             JSON.stringify({
-              type: "file-ready",
+              type: "file-complete-ack",
+              roomId: message.roomId,
               fileId: message.fileId,
-              fileName: message.fileName,
-              fileType: message.fileType,
-              downloadUrl: `http://localhost:8080/files/${message.fileId}-${message.fileName}`,
             })
           );
-        }
-      });
+
+          const allKeys = await redisClient.keys("*");
+          console.log("All Redis keys:", allKeys);
+
+          console.log({ message });
+
+          const roomKey = `room:${message.roomId}`;
+          const roomExists = await redisClient.exists(roomKey);
+          console.log(`Does key "${roomKey}" exist?`, roomExists);
+
+          const users = await redisClient.sMembers(`room:${message.roomId}`);
+
+          console.log(users, "User ma chai hunxa janna man lagyo ta");
+
+          users?.forEach((userId) => {
+            console.log("Room veteko hora redis ko");
+            console.log(userId, "What is the userId here");
+
+            console.log(sockets, "Sockets chai k ho lamo empty object??");
+            const socket = sockets[userId];
+
+            console.log(socket, "Socket ko chai log ma k aauxa re");
+            if (socket && socket.readyState === 1 && userId !== ws.id) {
+              socket.send(
+                JSON.stringify({
+                  type: "file-ready",
+                  fileId: message.fileId,
+                  fileName: message.fileName,
+                  fileType: message.fileType,
+                  downloadUrl: `http://localhost:8080/files/${message.fileId}-${message.fileName}`,
+                })
+              );
+            }
+          });
+        });
+
+        delete fileStreams[message.fileId];
+      }
       return;
     }
   });
