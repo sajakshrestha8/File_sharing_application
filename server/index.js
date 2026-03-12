@@ -7,8 +7,6 @@ const redisClient = require("./redisClient/redisClient");
 const fs = require("fs");
 const multer = require("multer");
 
-console.log(redisClient, "Yo po ho class");
-
 const app = express();
 const PORT = 8080;
 
@@ -73,8 +71,6 @@ const rooms = new Map();
 const sockets = {};
 const fileStreams = {};
 
-console.log({ sockets });
-
 const server = app.listen(PORT, () =>
   console.log("server is running in port 8080")
 );
@@ -83,7 +79,6 @@ const websocket = new webSocket.Server({ server });
 
 // room create gareko hai
 websocket.on("connection", (ws) => {
-  console.log("websocket connectio ta vairako nai xa ta hajur");
   ws.id = randomUUID();
 
   ws.on("message", async (msg, isBinary) => {
@@ -91,7 +86,6 @@ websocket.on("connection", (ws) => {
 
     if (!isBinary) {
       message = JSON.parse(msg);
-      console.log(message, "MSG");
 
       if (message.type === "file-meta") {
         const filePath = `./uploadedFiles/${message.fileId}-${message.fileName}`;
@@ -119,8 +113,6 @@ websocket.on("connection", (ws) => {
     }
 
     if (!message) return;
-
-    console.log(message, "message");
 
     if (message.type === "createRoom") {
       const createdRoomId = randomUUID();
@@ -173,27 +165,11 @@ websocket.on("connection", (ws) => {
             })
           );
 
-          const allKeys = await redisClient.keys("*");
-          console.log("All Redis keys:", allKeys);
-
-          console.log({ message });
-
-          const roomKey = `room:${message.roomId}`;
-          const roomExists = await redisClient.exists(roomKey);
-          console.log(`Does key "${roomKey}" exist?`, roomExists);
-
           const users = await redisClient.sMembers(`room:${message.roomId}`);
 
-          console.log(users, "User ma chai hunxa janna man lagyo ta");
-
           users?.forEach((userId) => {
-            console.log("Room veteko hora redis ko");
-            console.log(userId, "What is the userId here");
-
-            console.log(sockets, "Sockets chai k ho lamo empty object??");
             const socket = sockets[userId];
 
-            console.log(socket, "Socket ko chai log ma k aauxa re");
             if (socket && socket.readyState === 1 && userId !== ws.id) {
               socket.send(
                 JSON.stringify({

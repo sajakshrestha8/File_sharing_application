@@ -16,14 +16,11 @@ function Dashboard() {
 
   useEffect(() => {
     // Initalize Websocket connection
-    console.log(ws);
     if (!isReady || !ws.current) return;
 
-    console.log("useEffect lamo");
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      console.log(data, "Data ma k aauxa");
       if (data?.roomId) {
         setRoomId(data.roomId);
       }
@@ -31,7 +28,6 @@ function Dashboard() {
       if (data?.type === "file-complete-ack") {
         navigate(`/${data.roomId}`);
       }
-      console.log(event);
       setResponseFromServer(data.message || JSON.stringify(data));
     };
   }, [isReady]);
@@ -43,10 +39,8 @@ function Dashboard() {
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log(e.target.files, "File targets");
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
-    console.log({ selectedFile });
 
     if (selectedFile?.size > 50 * 1024 * 1024) {
       alert("File size exceeds 50MB limit");
@@ -57,12 +51,7 @@ function Dashboard() {
   };
 
   const sendFile = () => {
-    console.log(ws);
     if (!file || !ws) return;
-
-    console.log("ws ta xa hai useParams");
-
-    console.log(roomId, "Room id nai xain ki k ho vanesi ta");
 
     if (!roomId) {
       ws.current?.send(
@@ -78,7 +67,6 @@ function Dashboard() {
   };
 
   const startSendingFile = (currentRoomId: string) => {
-    console.log(file, "File xa ki xaina");
     if (!file) return;
     setIsSending(true);
 

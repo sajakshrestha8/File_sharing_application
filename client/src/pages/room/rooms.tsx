@@ -32,9 +32,8 @@ function Room() {
     if (!isReady || !ws.current) return;
 
     ws.current.onopen = () => {
-      console.log("WebSocket connected");
       setConnected(true);
-      ws.send(JSON.stringify({ type: "join", roomId }));
+      ws.current?.send(JSON.stringify({ type: "join", roomId }));
     };
 
     ws.current.onmessage = (event) => {
@@ -63,7 +62,6 @@ function Room() {
         setReceiveProgress(0);
       }
 
-      console.log(data, "data ma type k aairaxa ra lamo");
       if (data.type === "file-ready") {
         setDownloadUrl(data.downloadUrl);
         setDownloadFileName(data.fileName);
