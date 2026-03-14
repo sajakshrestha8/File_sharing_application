@@ -81,6 +81,7 @@ const websocket = new webSocket.Server({ server });
 websocket.on("connection", (ws) => {
   ws.id = randomUUID();
 
+  sockets[ws.id] = ws;
   ws.on("message", async (msg, isBinary) => {
     let message;
 
@@ -129,8 +130,33 @@ websocket.on("connection", (ws) => {
     }
 
     if (message.type === "join") {
+      console.log(
+        message,
+        "Server ma message k aako nai tha vayena ni ta pasa"
+      );
+      if (!message.roomId) {
+        ws.send(
+          JSON.stringify({ type: "error", message: "roomId is required" })
+        );
+        return;
+      }
+
       await redisClient.sAdd(`room:${message.roomId}`, ws.id);
       sockets[ws.id] = ws;
+
+      console.log(`${ws.id} joined room: ${message.roomId}`);
+      console.log(
+        `Room members:`,
+        await redisClient.sMembers(`room:${message.roomId}`)
+      );
+
+      ws.send(
+        JSON.stringify({
+          type: "file-meta",
+          roomId: message.roomId,
+          message: "Joined room successfully",
+        })
+      );
     }
 
     if (message.type === "message") {

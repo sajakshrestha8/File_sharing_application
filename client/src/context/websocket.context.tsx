@@ -19,6 +19,8 @@ export const WebSocketProvider = ({
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    console.log("Page change vayepaxi k hunxa");
+    if (ws.current?.readyState === WebSocket.OPEN) return;
     const socket = new WebSocket("ws://localhost:8080");
     ws.current = socket;
 
@@ -33,7 +35,9 @@ export const WebSocketProvider = ({
     };
 
     return () => {
-      socket.close();
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
     };
   }, []);
 

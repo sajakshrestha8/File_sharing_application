@@ -7,10 +7,11 @@ import { WebSocketProvider } from "./context/websocket.context.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
-    <StrictMode>
-      <WebSocketProvider>
-        <App />
-      </WebSocketProvider>
-    </StrictMode>
+    <WebSocketProvider>
+      {/* Commented to escape from ws disconnection issue*/}
+      {/* <StrictMode> */}
+      <App />
+      {/* </StrictMode> */}
+    </WebSocketProvider>
   </BrowserRouter>
 );

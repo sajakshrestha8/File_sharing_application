@@ -11,7 +11,9 @@ interface ChatMessage {
 }
 
 function Room() {
-  const { roomId } = useParams();
+  const { slug } = useParams();
+  console.log(useParams());
+  console.log({ slug });
   const { ws, isReady } = useWebSocket();
 
   const [message, setMessage] = useState("");
@@ -29,12 +31,13 @@ function Room() {
   const [receiveProgress, setReceiveProgress] = useState(0);
 
   useEffect(() => {
+    console.log({ isReady });
     if (!isReady || !ws.current) return;
 
-    ws.current.onopen = () => {
-      setConnected(true);
-      ws.current?.send(JSON.stringify({ type: "join", roomId }));
-    };
+    setConnected(true);
+
+    console.log("Sending join for roomId:", slug);
+    ws.current.send(JSON.stringify({ type: "join", roomId: slug }));
 
     ws.current.onmessage = (event) => {
       if (event.data instanceof Blob) {
@@ -55,28 +58,38 @@ function Room() {
       }
 
       const data = JSON.parse(event.data);
-
+      console.log("Rooms received message:", data);
       if (data.type === "file-meta") {
         setIncomingFileMeta(data);
         setReceivedChunks([]);
-        setReceiveProgress(0);
+        // setReceiveProgress(0);
       }
 
       if (data.type === "file-ready") {
         setDownloadUrl(data.downloadUrl);
         setDownloadFileName(data.fileName);
       }
+
+      if (data.type === "message") {
+        setMessages((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), message: data.message, from: data.from },
+        ]);
+      }
     };
 
     ws.current.onerror = (err) => console.error("WebSocket error:", err);
-    ws.current.onclose = () => {
-      console.log("WebSocket disconnected");
-      setConnected(false);
-    };
 
-    const currentWs = ws.current;
-    return () => currentWs?.close();
-  }, [roomId]);
+    return () => {
+      if (ws.current) {
+        ws.current.onmessage = null;
+      }
+    };
+  }, [isReady]);
+
+  console.log(incomingFileMeta, "Incomming File meta ma chai k aaune hora");
+
+  // ...existing code...
 
   const sendMessage = () => {
     if (!message.trim() || !ws?.current) return;
@@ -85,7 +98,7 @@ function Room() {
       return;
     }
 
-    ws.current.send(JSON.stringify({ type: "message", roomId, message }));
+    ws.current.send(JSON.stringify({ type: "message", roomId: slug, message }));
     setMessages((prev) => [
       ...prev,
       { id: crypto.randomUUID(), message, from: "You" },
@@ -104,7 +117,7 @@ function Room() {
       <header className="room-header">
         <div>
           <h2>Room Chat</h2>
-          <p className="room-id">ID: {roomId}</p>
+          <p className="room-id">ID: {slug}</p>
         </div>
 
         <div className="room-actions">
