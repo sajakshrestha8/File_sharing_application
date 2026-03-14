@@ -14,7 +14,14 @@ function Room() {
   const { slug } = useParams();
   console.log(useParams());
   console.log({ slug });
-  const { ws, isReady } = useWebSocket();
+  const {
+    ws,
+    isReady,
+    pendingChunks,
+    setPendingChuncks,
+    pendingFileMeta,
+    setPendingFileMeta,
+  } = useWebSocket();
 
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -31,10 +38,20 @@ function Room() {
   const [receiveProgress, setReceiveProgress] = useState(0);
 
   useEffect(() => {
+    if (pendingFileMeta) {
+      setIncomingFileMeta(pendingFileMeta);
+      setPendingFileMeta(null);
+    }
+
+    if (pendingChunks.length > 0) {
+      setReceivedChunks(pendingChunks);
+      setPendingChuncks([]);
+    }
+  }, []);
+
+  useEffect(() => {
     console.log({ isReady });
     if (!isReady || !ws.current) return;
-
-    setConnected(true);
 
     console.log("Sending join for roomId:", slug);
     ws.current.send(JSON.stringify({ type: "join", roomId: slug }));
@@ -59,7 +76,13 @@ function Room() {
 
       const data = JSON.parse(event.data);
       console.log("Rooms received message:", data);
+
+      if (data.type === "join-ack") {
+        setConnected(true);
+      }
+
       if (data.type === "file-meta") {
+        console.log("Data ko type file meta pani aayo aaba ta yess");
         setIncomingFileMeta(data);
         setReceivedChunks([]);
         // setReceiveProgress(0);

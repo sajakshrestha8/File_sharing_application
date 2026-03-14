@@ -1,13 +1,30 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
+export type FileMeta = {
+  fileId: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  totalChunks: number;
+  roomId: string;
+};
+
 type WebSocketContextType = {
   ws: React.MutableRefObject<WebSocket | null>;
   isReady: boolean;
+  pendingFileMeta: FileMeta | null;
+  setPendingFileMeta: (file: FileMeta) => void;
+  pendingChunks: ArrayBuffer[];
+  setPendingChuncks: React.Dispatch<React.SetStateAction<ArrayBuffer[]>>;
 };
 
 const WebSocketContext = createContext<WebSocketContextType>({
   ws: { current: null },
   isReady: false,
+  pendingFileMeta: null,
+  setPendingFileMeta: () => {},
+  pendingChunks: [],
+  setPendingChuncks: () => {},
 });
 
 export const WebSocketProvider = ({
@@ -17,6 +34,8 @@ export const WebSocketProvider = ({
 }) => {
   const ws = useRef<WebSocket | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [pendingFileMeta, setPendingFileMeta] = useState<FileMeta | null>(null);
+  const [pendingChunks, setPendingChuncks] = useState<ArrayBuffer[]>([]);
 
   useEffect(() => {
     console.log("Page change vayepaxi k hunxa");
@@ -34,6 +53,25 @@ export const WebSocketProvider = ({
       setIsReady(false);
     };
 
+    socket.onmessage = (event) => {
+      if (event.data instanceof Blob) {
+        event.data.arrayBuffer().then((buffer) => {
+          setPendingChuncks((prev) => [...prev, buffer]);
+        });
+        return;
+      }
+
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "file-meta") {
+          setPendingFileMeta(data);
+        }
+      } catch (error) {
+        console.error("Failed", error);
+      }
+    };
+
     return () => {
       if (socket.readyState === WebSocket.OPEN) {
         socket.close();
@@ -42,7 +80,16 @@ export const WebSocketProvider = ({
   }, []);
 
   return (
-    <WebSocketContext.Provider value={{ ws, isReady }}>
+    <WebSocketContext.Provider
+      value={{
+        ws,
+        isReady,
+        pendingChunks,
+        setPendingChuncks,
+        pendingFileMeta,
+        setPendingFileMeta,
+      }}
+    >
       {children}
     </WebSocketContext.Provider>
   );

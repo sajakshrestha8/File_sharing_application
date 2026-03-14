@@ -80,8 +80,16 @@ const websocket = new webSocket.Server({ server });
 // room create gareko hai
 websocket.on("connection", (ws) => {
   ws.id = randomUUID();
-
   sockets[ws.id] = ws;
+
+  ws.on("close", async () => {
+    delete sockets[ws.id];
+    const allRooms = await redisClient.sMembers("rooms");
+    for (const roomId of allRooms) {
+      await redisClient.sRem(`room:${roomId}`, ws.id);
+    }
+  });
+
   ws.on("message", async (msg, isBinary) => {
     let message;
 
@@ -99,10 +107,21 @@ websocket.on("connection", (ws) => {
         fileStreams[message.fileId] = fs.createWriteStream(filePath);
 
         const users = await redisClient.sMembers(`room:${message.roomId}`);
+
         users.forEach((userId) => {
           const socket = sockets[userId];
-          if (socket && socket.readyState === 1 && userId !== ws.id) {
-            socket.send(JSON.stringify(message));
+          if (socket && socket.readyState === 1) {
+            socket.send(
+              JSON.stringify({
+                type: "file-meta",
+                fileId: message.fileId,
+                fileName: message.fileName,
+                fileSize: message.fileSize,
+                fileType: message.fileType,
+                totalChunks: message.totalChunks,
+                roomId: message.roomId,
+              })
+            );
           }
         });
         return;
@@ -116,6 +135,7 @@ websocket.on("connection", (ws) => {
     if (!message) return;
 
     if (message.type === "createRoom") {
+      // 1
       const createdRoomId = randomUUID();
 
       await redisClient.sAdd("rooms", createdRoomId);
@@ -123,6 +143,7 @@ websocket.on("connection", (ws) => {
 
       ws.send(
         JSON.stringify({
+          type: "room-created",
           message: "Room created successfully",
           roomId: createdRoomId,
         })
@@ -152,7 +173,7 @@ websocket.on("connection", (ws) => {
 
       ws.send(
         JSON.stringify({
-          type: "file-meta",
+          type: "join-ack",
           roomId: message.roomId,
           message: "Joined room successfully",
         })
@@ -178,7 +199,7 @@ websocket.on("connection", (ws) => {
     }
 
     if (message.type === "file-complete") {
-      const filePath = `./uploadedFiles/${message.fileId}-${message.fileName}`;
+      if (!message.roomId || !message.fileId) return;
 
       const stream = fileStreams[message.fileId];
       if (stream) {

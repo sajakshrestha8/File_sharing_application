@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./dashboard.css";
 import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../../context/websocket.context";
@@ -21,7 +21,7 @@ function Dashboard() {
     ws.current.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      if (data?.roomId) {
+      if (data?.type === "room-created" && data?.roomId) {
         setRoomId(data.roomId);
       }
 
@@ -31,6 +31,15 @@ function Dashboard() {
       setResponseFromServer(data.message || JSON.stringify(data));
     };
   }, [isReady]);
+
+  const hasStartedSending = useRef(false);
+
+  useEffect(() => {
+    if (roomId && file && !isSending && !hasStartedSending.current) {
+      hasStartedSending.current = true;
+      startSendingFile(roomId);
+    }
+  }, [roomId]);
 
   const sendMessage = () => {
     if (message.length <= 0 || !ws) return;
