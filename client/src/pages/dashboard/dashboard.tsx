@@ -18,7 +18,7 @@ function Dashboard() {
     // Initalize Websocket connection
     if (!isReady || !ws.current) return;
 
-    ws.current.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
 
       if (data?.type === "room-created" && data?.roomId) {
@@ -29,6 +29,12 @@ function Dashboard() {
         navigate(`/${data.roomId}`);
       }
       setResponseFromServer(data.message || JSON.stringify(data));
+    };
+
+    ws.current.addEventListener("message", handleMessage);
+
+    return () => {
+      ws.current?.removeEventListener("message", handleMessage);
     };
   }, [isReady]);
 

@@ -12,8 +12,6 @@ interface ChatMessage {
 
 function Room() {
   const { slug } = useParams();
-  console.log(useParams());
-  console.log({ slug });
   const {
     ws,
     isReady,
@@ -38,6 +36,7 @@ function Room() {
   const [receiveProgress, setReceiveProgress] = useState(0);
 
   useEffect(() => {
+    console.log(pendingFileMeta, "Pending file meta ma k aauxa hernu paryo");
     if (pendingFileMeta) {
       setIncomingFileMeta(pendingFileMeta);
       setPendingFileMeta(null);
@@ -49,14 +48,15 @@ function Room() {
     }
   }, []);
 
+  console.log(incomingFileMeta, "Incomming file meta ma chai k aaudo raxixa");
+  console.log(receivedChunks, "");
+
   useEffect(() => {
-    console.log({ isReady });
     if (!isReady || !ws.current) return;
 
-    console.log("Sending join for roomId:", slug);
     ws.current.send(JSON.stringify({ type: "join", roomId: slug }));
 
-    ws.current.onmessage = (event) => {
+    const handelMessage = (event: MessageEvent) => {
       if (event.data instanceof Blob) {
         event.data.arrayBuffer().then((buffer) => {
           setReceivedChunks((prev) => {
@@ -75,14 +75,13 @@ function Room() {
       }
 
       const data = JSON.parse(event.data);
-      console.log("Rooms received message:", data);
+      console.log(data, "data in room.tsx");
 
       if (data.type === "join-ack") {
         setConnected(true);
       }
 
       if (data.type === "file-meta") {
-        console.log("Data ko type file meta pani aayo aaba ta yess");
         setIncomingFileMeta(data);
         setReceivedChunks([]);
         // setReceiveProgress(0);
@@ -101,18 +100,14 @@ function Room() {
       }
     };
 
-    ws.current.onerror = (err) => console.error("WebSocket error:", err);
+    ws.current.addEventListener("message", handelMessage);
 
     return () => {
       if (ws.current) {
-        ws.current.onmessage = null;
+        ws.current?.removeEventListener("message", handelMessage);
       }
     };
   }, [isReady]);
-
-  console.log(incomingFileMeta, "Incomming File meta ma chai k aaune hora");
-
-  // ...existing code...
 
   const sendMessage = () => {
     if (!message.trim() || !ws?.current) return;

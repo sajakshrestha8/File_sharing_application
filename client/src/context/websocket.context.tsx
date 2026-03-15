@@ -39,6 +39,7 @@ export const WebSocketProvider = ({
 
   useEffect(() => {
     console.log("Page change vayepaxi k hunxa");
+    console.log(ws.current?.readyState, "Ready state ma kai xa k lamo");
     if (ws.current?.readyState === WebSocket.OPEN) return;
     const socket = new WebSocket("ws://localhost:8080");
     ws.current = socket;
@@ -53,7 +54,7 @@ export const WebSocketProvider = ({
       setIsReady(false);
     };
 
-    socket.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       if (event.data instanceof Blob) {
         event.data.arrayBuffer().then((buffer) => {
           setPendingChuncks((prev) => [...prev, buffer]);
@@ -71,6 +72,8 @@ export const WebSocketProvider = ({
         console.error("Failed", error);
       }
     };
+
+    socket.addEventListener("message", handleMessage);
 
     return () => {
       if (socket.readyState === WebSocket.OPEN) {
