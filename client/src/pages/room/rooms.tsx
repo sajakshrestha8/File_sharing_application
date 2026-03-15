@@ -38,7 +38,12 @@ function Room() {
   useEffect(() => {
     console.log(pendingFileMeta, "Pending file meta ma k aauxa hernu paryo");
     if (pendingFileMeta) {
-      setIncomingFileMeta(pendingFileMeta);
+      setIncomingFileMeta({
+        fileId: pendingFileMeta.fileId,
+        fileName: pendingFileMeta.fileName,
+        fileType: pendingFileMeta.fileType,
+        totalChunks: pendingFileMeta.totalChunks,
+      });
       setPendingFileMeta(null);
     }
 
@@ -48,20 +53,25 @@ function Room() {
     }
   }, []);
 
-  console.log(incomingFileMeta, "Incomming file meta ma chai k aaudo raxixa");
-  console.log(receivedChunks, "");
-
   useEffect(() => {
     if (!isReady || !ws.current) return;
 
     ws.current.send(JSON.stringify({ type: "join", roomId: slug }));
 
     const handelMessage = (event: MessageEvent) => {
-      if (event.data instanceof Blob) {
-        event.data.arrayBuffer().then((buffer) => {
+      console.log("Is this function triggered ============");
+      console.log(event.type);
+      if (event.data instanceof Blob || event.data instanceof ArrayBuffer) {
+        const toBuffer =
+          event.data instanceof Blob
+            ? event.data.arrayBuffer()
+            : Promise.resolve(event.data);
+
+        toBuffer.then((buffer) => {
           setReceivedChunks((prev) => {
             const updated = [...prev, buffer];
             if (incomingFileMeta) {
+              console.log("Yo run huna chai parne ho");
               setReceiveProgress(
                 Math.round(
                   (updated.length / incomingFileMeta.totalChunks) * 100
@@ -84,7 +94,7 @@ function Room() {
       if (data.type === "file-meta") {
         setIncomingFileMeta(data);
         setReceivedChunks([]);
-        // setReceiveProgress(0);
+        setReceiveProgress(0);
       }
 
       if (data.type === "file-ready") {
@@ -194,7 +204,7 @@ function Room() {
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
-        <button onClick={sendMessage}>Send</button>
+        {/* <button onClick={sendMessage}>Send</button> */}
       </div>
     </div>
   );

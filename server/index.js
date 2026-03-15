@@ -92,6 +92,7 @@ websocket.on("connection", (ws) => {
 
   ws.on("message", async (msg, isBinary) => {
     let message;
+    console.log({ isBinary });
 
     if (!isBinary) {
       message = JSON.parse(msg);
@@ -128,8 +129,27 @@ websocket.on("connection", (ws) => {
       }
     }
 
-    if (isBinary && ws.fileId) {
+    if (isBinary) {
+      if (!ws.fileId || !fileStreams[ws.fileId]) {
+        console.warn(
+          "Binary received but no active fileStream for:",
+          ws.fileId
+        );
+        return;
+      }
+
       fileStreams[ws.fileId].write(msg);
+      ws.receivedChunks = (ws.receivedChunks || 0) + 1;
+      console.log(`Chunk ${ws.receivedChunks}/${ws.totalChunks}`);
+
+      const users = await redisClient.sMembers(`room:${ws.roomId}`);
+      users.forEach((userId) => {
+        const socket = sockets[userId];
+        if (socket && socket.readyState === 1 && userId !== ws.id) {
+          socket.send(msg);
+        }
+      });
+      return;
     }
 
     if (!message) return;
@@ -217,7 +237,7 @@ websocket.on("connection", (ws) => {
           users?.forEach((userId) => {
             const socket = sockets[userId];
 
-            if (socket && socket.readyState === 1 && userId !== ws.id) {
+            if (socket && socket.readyState === 1) {
               socket.send(
                 JSON.stringify({
                   type: "file-ready",

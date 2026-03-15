@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../../context/websocket.context";
 
 function Dashboard() {
-  const { ws, isReady } = useWebSocket();
+  const { ws, isReady, setPendingFileMeta } = useWebSocket();
   const [message, setMessage] = useState<string>("");
   const [responseFromServer, setResponseFromServer] = useState<string>("");
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -91,6 +91,15 @@ function Dashboard() {
     let currentChunk = 0;
 
     if (!ws) return;
+
+    setPendingFileMeta({
+      fileId,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      totalChunks,
+      roomId: currentRoomId,
+    });
 
     ws.current?.send(
       JSON.stringify({
