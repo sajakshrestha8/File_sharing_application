@@ -67,7 +67,6 @@ app.get("/files/:id", (req, res) => {
 
 // web socket connection
 
-const rooms = new Map();
 const sockets = {};
 const fileStreams = {};
 

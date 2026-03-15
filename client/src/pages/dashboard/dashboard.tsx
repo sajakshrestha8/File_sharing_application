@@ -161,6 +161,7 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
+      {/* Sidebar */}
       <aside className="sidebar">
         <div className="logo">
           <h2>
@@ -169,7 +170,7 @@ function Dashboard() {
         </div>
         <div className="room-info">
           <label>Active Room</label>
-          <div className="room-badge"># Global-Share</div>
+          <div className="room-badge">Global-Share</div>
         </div>
         <nav className="sidebar-nav"></nav>
       </aside>
@@ -184,57 +185,60 @@ function Dashboard() {
         </header>
 
         <section className="dashboard-grid">
-          {/* Upload Area */}
+          {/* Upload Card */}
           <div className="upload-card">
-            {file ? (
-              <div
-                style={{
-                  marginTop: "1rem",
-                  padding: "1rem",
-                  background: "#f8fafc",
-                  borderRadius: "8px",
-                }}
-              >
-                <p>
-                  📄 <strong>{file.name}</strong>
-                </p>
-                <p style={{ fontSize: "0.8rem", color: "#64748b" }}>
-                  {(file.size / 1024).toFixed(1)} KB •{" "}
-                  {file.type || "Unknown type"}
-                </p>
+            <div className="upload-card-header">
+              <h3>Upload File</h3>
+            </div>
 
-                {isSending && (
-                  <div>
-                    <div
-                      className="progress-mini"
-                      style={{ marginTop: "0.5rem" }}
-                    >
-                      <div
-                        className="progress-fill"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
+            {file ? (
+              <>
+                <div className="file-preview">
+                  <div className="file-preview-row">
+                    <div className="file-icon-box">📄</div>
+                    <div className="file-meta-block">
+                      <span className="file-name-text">{file.name}</span>
+                      <span className="file-size-text">
+                        {(file.size / 1024).toFixed(1)} KB &middot;{" "}
+                        {file.type || "Unknown type"}
+                      </span>
                     </div>
-                    <p style={{ fontSize: "0.75rem" }}>
-                      {uploadProgress}% uploaded
-                    </p>
                   </div>
-                )}
+
+                  {isSending && (
+                    <div className="progress-bar-wrap">
+                      <div className="progress-bar-label">
+                        <span>Uploading…</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="progress-mini">
+                        <div
+                          className="progress-fill"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {!isSending && (
-                  <button
-                    className="btn-primary"
-                    onClick={sendFile}
-                    disabled={isSending}
-                  >
-                    Share file
-                  </button>
+                  <div className="upload-card-footer">
+                    <button
+                      className="btn-primary"
+                      onClick={sendFile}
+                      disabled={isSending}
+                      style={{ width: "100%" }}
+                    >
+                      Share File
+                    </button>
+                  </div>
                 )}
-              </div>
+              </>
             ) : (
               <div className="dropzone">
-                <div className="icon">📂</div>
-                <h3>Click or Drag to Upload</h3>
-                <p>Supports Any File (Max 50MB for WebSockets)</p>
+                <span className="icon">📂</span>
+                <h3>Drop your file here</h3>
+                <p>or click to browse &nbsp;·&nbsp; Max 50 MB</p>
                 <input
                   type="file"
                   className="file-input"
@@ -244,48 +248,39 @@ function Dashboard() {
             )}
           </div>
 
-          {/* Activity/Transfer Feed */}
+          {/* Activity Feed */}
           <div className="feed-card">
-            <h3>Recent Activity</h3>
-            {/* <div className="feed-list">
-              <div className="feed-item">
-                <div className="file-icon">📄</div>
-                <div className="file-info">
-                  <span className="file-name">Project_Requirements.pdf</span>
-                  <span className="file-meta">2.4 MB • From Sarah_Dev</span>
-                </div>
-                <button className="btn-download">Download</button>
-              </div>
-
-              <div className="feed-item">
-                <div className="file-icon">🖼️</div>
-                <div className="file-info">
-                  <span className="file-name">Dashboard_Final.png</span>
-                  <span className="file-meta">850 KB • Uploading...</span>
-                </div>
-                <div className="progress-mini">
-                  <div className="progress-fill" style={{ width: "65%" }}></div>
-                </div>
-              </div>
-            </div> */}
-            <div>Loading....</div>
+            <div className="feed-card-header">
+              <h3>Recent Activity</h3>
+            </div>
+            <div className="feed-empty">
+              <span className="feed-empty-icon">📭</span>
+              No recent transfers yet
+            </div>
           </div>
         </section>
-        <div>
-          <label htmlFor="message">Write a message for server</label>
+
+        {/* Debug / Message Section */}
+        <div className="debug-section">
+          <label htmlFor="message">Message</label>
           <input
+            id="message"
             type="text"
-            placeholder="Write a message "
+            placeholder="Write a message to server…"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           />
-          <button onClick={sendMessage}>send</button>
+          <button className="btn-primary" onClick={sendMessage}>
+            Send
+          </button>
         </div>
-        <div>
-          <label htmlFor="responseFromServer">
-            The response from the server is: {responseFromServer}
-          </label>
-        </div>
+
+        {responseFromServer && (
+          <div className="server-response">
+            <label>Server: {responseFromServer}</label>
+          </div>
+        )}
       </main>
     </div>
   );
