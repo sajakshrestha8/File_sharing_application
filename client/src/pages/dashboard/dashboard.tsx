@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import "./dashboard.css";
-import { useNavigate } from "react-router-dom";
+import { data, useNavigate } from "react-router-dom";
 import { useWebSocket } from "../../context/websocket.context";
+import axios from "axios";
 
 function Dashboard() {
   const { ws, isReady, setPendingFileMeta } = useWebSocket();
@@ -66,91 +67,37 @@ function Dashboard() {
   };
 
   const sendFile = () => {
+    console.log(file);
     if (!file || !ws) return;
 
-    if (!roomId) {
-      ws.current?.send(
-        JSON.stringify({
-          type: "createRoom",
-          message: "Creating room for file share",
-        })
-      );
-      return;
-    }
+    // if (!roomId) {
+    //   ws.current?.send(
+    //     JSON.stringify({
+    //       type: "createRoom",
+    //       message: "Creating room for file share",
+    //     })
+    //   );
+    //   return;
+    // }
 
     startSendingFile(roomId);
   };
 
   const startSendingFile = (currentRoomId: string) => {
+    console.log("heheheheheh");
+    console.log(file);
     if (!file) return;
     setIsSending(true);
+    console.log(currentRoomId);
 
-    const CHUNK_SIZE = 64 * 1024;
-    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-    const fileId = crypto.randomUUID();
-    let currentChunk = 0;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    if (!ws) return;
-
-    setPendingFileMeta({
-      fileId,
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      totalChunks,
-      roomId: currentRoomId,
-    });
-
-    ws.current?.send(
-      JSON.stringify({
-        type: "file-meta",
-        roomId: currentRoomId,
-        fileId,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        totalChunks,
-      })
-    );
-
-    const readNextChunk = () => {
-      const start = currentChunk * CHUNK_SIZE;
-      const end = Math.min(file.size, start + CHUNK_SIZE);
-      const blob = file.slice(start, end);
-      const reader = new FileReader();
-
-      reader.onload = (e) => {
-        const buffer = e.target?.result;
-        if (!(buffer instanceof ArrayBuffer)) return;
-        if (ws.current?.readyState !== WebSocket.OPEN) return;
-
-        ws.current.send(buffer);
-
-        currentChunk++;
-
-        setUploadProgress(Math.round((currentChunk / totalChunks) * 100));
-
-        if (currentChunk < totalChunks) {
-          readNextChunk();
-        } else {
-          ws.current.send(
-            JSON.stringify({
-              type: "file-complete",
-              fileId,
-              roomId: currentRoomId,
-              fileName: file.name,
-              fileType: file.type,
-            })
-          );
-          setIsSending(false);
-          setUploadProgress(0);
-        }
-      };
-
-      reader.readAsArrayBuffer(blob);
-    };
-
-    readNextChunk();
+      axios.post("http://localhost:8080/files/upload", formData);
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   useEffect(() => {
