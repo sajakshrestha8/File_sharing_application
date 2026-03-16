@@ -6,11 +6,33 @@ const { randomUUID } = require("crypto");
 const redisClient = require("./redisClient/redisClient");
 const fs = require("fs");
 const multer = require("multer");
+const path = require("path");
+const cors = require("cors");
 
 const app = express();
 const PORT = 8080;
 
 app.use(express.json());
+app.use(cors());
+
+const uploadDir = "./uploadedFiles";
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDir);
+  },
+
+  filename: (_req, file, cb) => {
+    const fileId = randomUUID();
+    cb(null, `${fileId}-${file.originalname}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
 app.post("/register", async (req, res) => {
   try {
@@ -65,6 +87,46 @@ app.get("/files/:id", (req, res) => {
   res.download(filePath);
 });
 
+app.use(
+  "/uploadedFiles",
+  express.static(path.join(__dirname, "uploadedFiles"))
+);
+
+app.post("/files/upload", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) throw new Error("No file uploaded");
+
+    const { roomId } = req.body;
+
+    const downloadUrl = `http://localhost:8080/uploadedFiles/${req.file.filename}`;
+
+    const users = await redisClient.sMembers(`room:${roomId}`);
+
+    users.forEach((userId) => {
+      const socket = sockets[userId];
+      if (socket && socket.readyState === 1) {
+        socket.send(
+          JSON.stringify({
+            type: "file-ready",
+            fileName: req.file.originalname,
+            fileType: req.file.mimetype,
+            fileSize: req.file.size,
+            downloadUrl,
+          })
+        );
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      fileName: req.file.originalname,
+      downloadUrl,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
 // web socket connection
 
 const sockets = {};
@@ -91,42 +153,6 @@ websocket.on("connection", (ws) => {
 
   ws.on("message", async (msg, isBinary) => {
     let message;
-    console.log({ isBinary });
-
-    if (!isBinary) {
-      message = JSON.parse(msg);
-
-      if (message.type === "file-meta") {
-        const filePath = `./uploadedFiles/${message.fileId}-${message.fileName}`;
-
-        ws.fileId = message.fileId;
-        ws.roomId = message.roomId;
-        ws.totalChunks = message.totalChunks;
-        ws.receivedChunks = 0;
-
-        fileStreams[message.fileId] = fs.createWriteStream(filePath);
-
-        const users = await redisClient.sMembers(`room:${message.roomId}`);
-
-        users.forEach((userId) => {
-          const socket = sockets[userId];
-          if (socket && socket.readyState === 1) {
-            socket.send(
-              JSON.stringify({
-                type: "file-meta",
-                fileId: message.fileId,
-                fileName: message.fileName,
-                fileSize: message.fileSize,
-                fileType: message.fileType,
-                totalChunks: message.totalChunks,
-                roomId: message.roomId,
-              })
-            );
-          }
-        });
-        return;
-      }
-    }
 
     if (isBinary) {
       if (!ws.fileId || !fileStreams[ws.fileId]) {
