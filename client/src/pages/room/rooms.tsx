@@ -54,7 +54,19 @@ function Room() {
   }, []);
 
   useEffect(() => {
+    if (incomingFileMeta && receivedChunks.length > 0) {
+      setReceiveProgress(
+        Math.round((receivedChunks.length / incomingFileMeta.totalChunks) * 100)
+      );
+    }
+  }, [receivedChunks, incomingFileMeta]);
+
+  useEffect(() => {
     if (!isReady || !ws.current) return;
+    if (!slug) {
+      console.error("No roomId in URL");
+      return;
+    }
 
     ws.current.send(JSON.stringify({ type: "join", roomId: slug }));
 
