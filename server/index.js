@@ -177,10 +177,13 @@ websocket.on("connection", (ws) => {
       return;
     }
 
+    console.log(message);
+
     if (!message) return;
 
     if (message.type === "createRoom") {
       // 1
+      console.log("yo type aayo ra");
       const createdRoomId = randomUUID();
 
       await redisClient.sAdd("rooms", createdRoomId);

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./dashboard.css";
-import { data, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../../context/websocket.context";
-import axios from "axios";
 
 function Dashboard() {
   const { ws, isReady, setPendingFileMeta } = useWebSocket();
@@ -21,6 +20,7 @@ function Dashboard() {
 
     const handleMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
+      console.log(data, "Websocket bata room id aauxa ki aaudaina");
 
       if (data?.type === "room-created" && data?.roomId) {
         setRoomId(data.roomId);
@@ -42,6 +42,7 @@ function Dashboard() {
   const hasStartedSending = useRef(false);
 
   useEffect(() => {
+    console.log("yo trigger hunxa ra aiale");
     if (roomId && file && !isSending && !hasStartedSending.current) {
       hasStartedSending.current = true;
       startSendingFile(roomId);
@@ -67,44 +68,66 @@ function Dashboard() {
   };
 
   const sendFile = () => {
-    console.log(file);
     if (!file || !ws) return;
 
-    // if (!roomId) {
-    //   ws.current?.send(
-    //     JSON.stringify({
-    //       type: "createRoom",
-    //       message: "Creating room for file share",
-    //     })
-    //   );
-    //   return;
-    // }
+    if (roomId) {
+      if (!hasStartedSending.current) {
+        hasStartedSending.current = true;
+        startSendingFile(roomId);
+      }
+      return;
+    }
 
-    startSendingFile(roomId);
+    ws.current?.send(JSON.stringify({ type: "createRoom" }));
   };
 
-  const startSendingFile = (currentRoomId: string) => {
-    console.log("heheheheheh");
-    console.log(file);
-    if (!file) return;
+  const startSendingFile = (currentRoomId: string | null) => {
+    console.log(file, "File vitra k aako xa ");
+    console.log(currentRoomId, "Room Id ma k xa ra");
+    if (!file || !currentRoomId) return;
     setIsSending(true);
-    console.log(currentRoomId);
 
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("roomId", currentRoomId);
 
-      axios.post("http://localhost:8080/files/upload", formData);
+      const xhr = new XMLHttpRequest();
+      console.log(xhr, "Consoling the xhr");
+
+      xhr.upload.onprogress = (e) => {
+        console.log(e, "Event ma chai k aauxa ra");
+        if (e.lengthComputable) {
+          const progress = Math.round((e.loaded / e.total) * 100);
+          setUploadProgress(progress);
+        }
+      };
+
+      xhr.onload = () => {
+        const response = JSON.parse(xhr.responseText);
+        if (xhr.status === 200 && response.success) {
+          console.log("file uploaded successfully");
+
+          setIsSending(false);
+          setUploadProgress(0);
+
+          navigate(`/${currentRoomId}`);
+        } else {
+          throw new Error(response.error || "Upload failed");
+        }
+      };
+
+      xhr.onerror = (error) => {
+        console.log("facing some errpr", error);
+        setIsSending(false);
+      };
+
+      xhr.open("POST", "http://localhost:8080/files/upload");
+      xhr.send(formData);
     } catch (error) {
       console.log(error);
     }
   };
-
-  useEffect(() => {
-    if (roomId && file && !isSending) {
-      startSendingFile(roomId);
-    }
-  }, [roomId]);
 
   return (
     <div className="dashboard-container">
