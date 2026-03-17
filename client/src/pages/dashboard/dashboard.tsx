@@ -20,7 +20,6 @@ function Dashboard() {
 
     const handleMessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
-      console.log(data, "Websocket bata room id aauxa ki aaudaina");
 
       if (data?.type === "room-created" && data?.roomId) {
         setRoomId(data.roomId);
@@ -42,7 +41,6 @@ function Dashboard() {
   const hasStartedSending = useRef(false);
 
   useEffect(() => {
-    console.log("yo trigger hunxa ra aiale");
     if (roomId && file && !isSending && !hasStartedSending.current) {
       hasStartedSending.current = true;
       startSendingFile(roomId);
@@ -82,8 +80,6 @@ function Dashboard() {
   };
 
   const startSendingFile = (currentRoomId: string | null) => {
-    console.log(file, "File vitra k aako xa ");
-    console.log(currentRoomId, "Room Id ma k xa ra");
     if (!file || !currentRoomId) return;
     setIsSending(true);
 
@@ -93,10 +89,8 @@ function Dashboard() {
       formData.append("roomId", currentRoomId);
 
       const xhr = new XMLHttpRequest();
-      console.log(xhr, "Consoling the xhr");
 
       xhr.upload.onprogress = (e) => {
-        console.log(e, "Event ma chai k aauxa ra");
         if (e.lengthComputable) {
           const progress = Math.round((e.loaded / e.total) * 100);
           setUploadProgress(progress);
@@ -106,8 +100,6 @@ function Dashboard() {
       xhr.onload = () => {
         const response = JSON.parse(xhr.responseText);
         if (xhr.status === 200 && response.success) {
-          console.log("file uploaded successfully");
-
           setIsSending(false);
           setUploadProgress(0);
 

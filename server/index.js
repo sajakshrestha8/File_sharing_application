@@ -154,6 +154,10 @@ websocket.on("connection", (ws) => {
   ws.on("message", async (msg, isBinary) => {
     let message;
 
+    if (!isBinary) {
+      message = JSON.parse(msg);
+    }
+
     if (isBinary) {
       if (!ws.fileId || !fileStreams[ws.fileId]) {
         console.warn(
@@ -165,7 +169,6 @@ websocket.on("connection", (ws) => {
 
       fileStreams[ws.fileId].write(msg);
       ws.receivedChunks = (ws.receivedChunks || 0) + 1;
-      console.log(`Chunk ${ws.receivedChunks}/${ws.totalChunks}`);
 
       const users = await redisClient.sMembers(`room:${ws.roomId}`);
       users.forEach((userId) => {
@@ -177,13 +180,10 @@ websocket.on("connection", (ws) => {
       return;
     }
 
-    console.log(message);
-
     if (!message) return;
 
     if (message.type === "createRoom") {
       // 1
-      console.log("yo type aayo ra");
       const createdRoomId = randomUUID();
 
       await redisClient.sAdd("rooms", createdRoomId);
@@ -199,10 +199,6 @@ websocket.on("connection", (ws) => {
     }
 
     if (message.type === "join") {
-      console.log(
-        message,
-        "Server ma message k aako nai tha vayena ni ta pasa"
-      );
       if (!message.roomId) {
         ws.send(
           JSON.stringify({ type: "error", message: "roomId is required" })
@@ -212,12 +208,6 @@ websocket.on("connection", (ws) => {
 
       await redisClient.sAdd(`room:${message.roomId}`, ws.id);
       sockets[ws.id] = ws;
-
-      console.log(`${ws.id} joined room: ${message.roomId}`);
-      console.log(
-        `Room members:`,
-        await redisClient.sMembers(`room:${message.roomId}`)
-      );
 
       ws.send(
         JSON.stringify({
