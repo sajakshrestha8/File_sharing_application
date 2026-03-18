@@ -22,7 +22,6 @@ const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
     cb(null, uploadDir);
   },
-
   filename: (_req, file, cb) => {
     const fileId = randomUUID();
     cb(null, `${fileId}-${file.originalname}`);
@@ -34,77 +33,63 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 },
 });
 
+app.use(
+  "/uploadedFiles",
+  express.static(path.join(__dirname, "uploadedFiles"))
+);
+
+const sockets = {};
+
 app.post("/register", async (req, res) => {
   try {
     const { firstName, lastName, email, password } = req.body;
-
     if (!firstName || !lastName || !email || !password)
-      throw new Error(`All fields are required`);
+      throw new Error("All fields are required");
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const registeredUser = await prisma.user.create({
       data: { firstName, lastName, email, password: hashedPassword },
     });
+
     res.status(200).json({ success: true, registeredUser });
   } catch (error) {
-    res.status(400).json({
-      success: "false",
-      error: error.message,
-    });
+    res.status(400).json({ success: false, error: error.message });
   }
 });
 
 app.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     if (!email || !password) throw new Error("All fields are required");
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error("User with this email is not registered");
 
-    if (!user) throw new Error("User with the email is not registered");
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) throw new Error("Incorrect password");
 
-    const decryptedPassword = await bcrypt.compare(password, user.password);
-
-    if (!decryptedPassword) throw new Error("Incorrect password");
-
-    res.status(200).json({ success: "true", message: "login successfull" });
+    res.status(200).json({ success: true, message: "Login successful" });
   } catch (error) {
-    res.status(400).json({
-      success: "false",
-      error: error.message,
-    });
+    res.status(400).json({ success: false, error: error.message });
   }
 });
-
-app.get("/files/:id", (req, res) => {
-  const fileId = req.params.id;
-
-  const filePath = getFilePathFromDB(fileId);
-
-  res.download(filePath);
-});
-
-app.use(
-  "/uploadedFiles",
-  express.static(path.join(__dirname, "uploadedFiles"))
-);
 
 app.post("/files/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) throw new Error("No file uploaded");
 
     const { roomId } = req.body;
+    if (!roomId) throw new Error("roomId is required");
 
     const downloadUrl = `http://localhost:8080/uploadedFiles/${req.file.filename}`;
+    console.log(`✅ File uploaded: ${req.file.filename} for room: ${roomId}`);
 
     const users = await redisClient.sMembers(`room:${roomId}`);
+    console.log(`Notifying ${users.length} users in room ${roomId}:`, users);
 
     users.forEach((userId) => {
       const socket = sockets[userId];
-      if (socket && socket.readyState === 1) {
+      if (socket && socket.readyState === webSocket.OPEN) {
         socket.send(
           JSON.stringify({
             type: "file-ready",
@@ -123,71 +108,71 @@ app.post("/files/upload", upload.single("file"), async (req, res) => {
       downloadUrl,
     });
   } catch (error) {
+    console.error("Upload error:", error.message);
     res.status(400).json({ success: false, error: error.message });
   }
 });
 
-// web socket connection
-
-const sockets = {};
-const fileStreams = {};
+app.get("/files/:filename", (req, res) => {
+  const filePath = path.join(__dirname, "uploadedFiles", req.params.filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "File not found" });
+  }
+  res.download(filePath);
+});
 
 const server = app.listen(PORT, () =>
-  console.log("server is running in port 8080")
+  console.log(`🚀 Server running on port ${PORT}`)
 );
 
-const websocket = new webSocket.Server({ server });
+const wss = new webSocket.Server({ server });
 
-// room create gareko hai
-websocket.on("connection", (ws) => {
+wss.on("connection", (ws) => {
   ws.id = randomUUID();
   sockets[ws.id] = ws;
+  console.log(`✅ Connected: ${ws.id} | Total: ${Object.keys(sockets).length}`);
 
   ws.on("close", async () => {
+    console.log(`❌ Disconnected: ${ws.id}`);
     delete sockets[ws.id];
-    const allRooms = await redisClient.sMembers("rooms");
-    for (const roomId of allRooms) {
-      await redisClient.sRem(`room:${roomId}`, ws.id);
+
+    try {
+      const allRooms = await redisClient.sMembers("rooms");
+      for (const roomId of allRooms) {
+        await redisClient.sRem(`room:${roomId}`, ws.id);
+      }
+    } catch (error) {
+      console.error("Redis cleanup error:", error);
     }
   });
 
   ws.on("message", async (msg, isBinary) => {
-    let message;
-
-    if (!isBinary) {
-      message = JSON.parse(msg);
-    }
-
     if (isBinary) {
-      if (!ws.fileId || !fileStreams[ws.fileId]) {
-        console.warn(
-          "Binary received but no active fileStream for:",
-          ws.fileId
-        );
-        return;
-      }
-
-      fileStreams[ws.fileId].write(msg);
-      ws.receivedChunks = (ws.receivedChunks || 0) + 1;
-
-      const users = await redisClient.sMembers(`room:${ws.roomId}`);
-      users.forEach((userId) => {
-        const socket = sockets[userId];
-        if (socket && socket.readyState === 1 && userId !== ws.id) {
-          socket.send(msg);
-        }
-      });
+      console.warn("Binary message received - ignored (use HTTP upload)");
       return;
     }
 
-    if (!message) return;
+    let message;
+    try {
+      message = JSON.parse(msg);
+    } catch (e) {
+      console.error("Failed to parse message:", e);
+      return;
+    }
+
+    console.log(`📨 [${message.type}] from ${ws.id}`);
 
     if (message.type === "createRoom") {
-      // 1
       const createdRoomId = randomUUID();
-
       await redisClient.sAdd("rooms", createdRoomId);
       await redisClient.sAdd(`room:${createdRoomId}`, ws.id);
+      sockets[ws.id] = ws;
+
+      console.log(`🏠 Room created: ${createdRoomId} by ${ws.id}`);
+      console.log(
+        `Room members:`,
+        await redisClient.sMembers(`room:${createdRoomId}`)
+      );
 
       ws.send(
         JSON.stringify({
@@ -196,6 +181,7 @@ websocket.on("connection", (ws) => {
           roomId: createdRoomId,
         })
       );
+      return;
     }
 
     if (message.type === "join") {
@@ -209,6 +195,10 @@ websocket.on("connection", (ws) => {
       await redisClient.sAdd(`room:${message.roomId}`, ws.id);
       sockets[ws.id] = ws;
 
+      const members = await redisClient.sMembers(`room:${message.roomId}`);
+      console.log(`👥 ${ws.id} joined room ${message.roomId}`);
+      console.log(`Room members:`, members);
+
       ws.send(
         JSON.stringify({
           type: "join-ack",
@@ -216,15 +206,25 @@ websocket.on("connection", (ws) => {
           message: "Joined room successfully",
         })
       );
+      return;
     }
 
     if (message.type === "message") {
+      if (!message.roomId) {
+        ws.send(
+          JSON.stringify({ type: "error", message: "roomId is required" })
+        );
+        return;
+      }
+
       const users = await redisClient.sMembers(`room:${message.roomId}`);
+      console.log(
+        `💬 Relaying message to ${users.length} users in room ${message.roomId}`
+      );
 
       users.forEach((userId) => {
         const socket = sockets[userId];
-
-        if (socket && socket.readyState === 1) {
+        if (socket && socket.readyState === webSocket.OPEN) {
           socket.send(
             JSON.stringify({
               type: "message",
@@ -234,44 +234,9 @@ websocket.on("connection", (ws) => {
           );
         }
       });
-    }
-
-    if (message.type === "file-complete") {
-      if (!message.roomId || !message.fileId) return;
-
-      const stream = fileStreams[message.fileId];
-      if (stream) {
-        stream.end(async () => {
-          ws.send(
-            JSON.stringify({
-              type: "file-complete-ack",
-              roomId: message.roomId,
-              fileId: message.fileId,
-            })
-          );
-
-          const users = await redisClient.sMembers(`room:${message.roomId}`);
-
-          users?.forEach((userId) => {
-            const socket = sockets[userId];
-
-            if (socket && socket.readyState === 1) {
-              socket.send(
-                JSON.stringify({
-                  type: "file-ready",
-                  fileId: message.fileId,
-                  fileName: message.fileName,
-                  fileType: message.fileType,
-                  downloadUrl: `http://localhost:8080/files/${message.fileId}-${message.fileName}`,
-                })
-              );
-            }
-          });
-        });
-
-        delete fileStreams[message.fileId];
-      }
       return;
     }
+
+    console.warn(`Unknown message type: ${message.type}`);
   });
 });
