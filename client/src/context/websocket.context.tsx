@@ -38,8 +38,6 @@ export const WebSocketProvider = ({
   const [pendingChunks, setPendingChuncks] = useState<ArrayBuffer[]>([]);
 
   useEffect(() => {
-    console.log("Page change vayepaxi k hunxa");
-    console.log(ws.current?.readyState, "Ready state ma kai xa k lamo");
     if (ws.current?.readyState === WebSocket.OPEN) return;
     const socket = new WebSocket("ws://localhost:8080");
     ws.current = socket;

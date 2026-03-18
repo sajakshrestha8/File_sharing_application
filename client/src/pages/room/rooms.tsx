@@ -1,65 +1,28 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import "./room.css";
 import { useWebSocket } from "../../context/websocket.context";
 
 interface ChatMessage {
   id: string;
   message: string;
-  fileLink?: string;
   from?: string;
+}
+
+interface FileInfo {
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  downloadUrl: string;
 }
 
 function Room() {
   const { slug } = useParams();
-  const {
-    ws,
-    isReady,
-    pendingChunks,
-    setPendingChuncks,
-    pendingFileMeta,
-    setPendingFileMeta,
-  } = useWebSocket();
+  const { ws, isReady } = useWebSocket();
 
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connected, setConnected] = useState(false);
-  const [incomingFileMeta, setIncomingFileMeta] = useState<{
-    fileId: string;
-    fileName: string;
-    fileType: string;
-    totalChunks: number;
-  } | null>(null);
-  const [receivedChunks, setReceivedChunks] = useState<ArrayBuffer[]>([]);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const [downloadFileName, setDownloadFileName] = useState<string>("");
-  const [receiveProgress, setReceiveProgress] = useState(0);
-
-  useEffect(() => {
-    console.log(pendingFileMeta, "Pending file meta ma k aauxa hernu paryo");
-    if (pendingFileMeta) {
-      setIncomingFileMeta({
-        fileId: pendingFileMeta.fileId,
-        fileName: pendingFileMeta.fileName,
-        fileType: pendingFileMeta.fileType,
-        totalChunks: pendingFileMeta.totalChunks,
-      });
-      setPendingFileMeta(null);
-    }
-
-    if (pendingChunks.length > 0) {
-      setReceivedChunks(pendingChunks);
-      setPendingChuncks([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (incomingFileMeta && receivedChunks.length > 0) {
-      setReceiveProgress(
-        Math.round((receivedChunks.length / incomingFileMeta.totalChunks) * 100)
-      );
-    }
-  }, [receivedChunks, incomingFileMeta]);
+  const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
 
   useEffect(() => {
     if (!isReady || !ws.current) return;
@@ -68,50 +31,36 @@ function Room() {
       return;
     }
 
+    console.log("Joining room:", slug);
     ws.current.send(JSON.stringify({ type: "join", roomId: slug }));
 
-    const handelMessage = (event: MessageEvent) => {
-      console.log("Is this function triggered ============");
-      console.log(event.type);
-      if (event.data instanceof Blob || event.data instanceof ArrayBuffer) {
-        const toBuffer =
-          event.data instanceof Blob
-            ? event.data.arrayBuffer()
-            : Promise.resolve(event.data);
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data instanceof Blob || event.data instanceof ArrayBuffer)
+        return;
 
-        toBuffer.then((buffer) => {
-          setReceivedChunks((prev) => {
-            const updated = [...prev, buffer];
-            if (incomingFileMeta) {
-              console.log("Yo run huna chai parne ho");
-              setReceiveProgress(
-                Math.round(
-                  (updated.length / incomingFileMeta.totalChunks) * 100
-                )
-              );
-            }
-            return updated;
-          });
-        });
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (e) {
+        console.error("Failed to parse message:", e);
         return;
       }
 
-      const data = JSON.parse(event.data);
-      console.log(data, "data in room.tsx");
+      console.log("Room received:", data);
 
       if (data.type === "join-ack") {
+        console.log("✅ Joined room:", data.roomId);
         setConnected(true);
       }
 
-      if (data.type === "file-meta") {
-        setIncomingFileMeta(data);
-        setReceivedChunks([]);
-        setReceiveProgress(0);
-      }
-
       if (data.type === "file-ready") {
-        setDownloadUrl(data.downloadUrl);
-        setDownloadFileName(data.fileName);
+        console.log("📥 File ready:", data.downloadUrl);
+        setFileInfo({
+          fileName: data.fileName,
+          fileType: data.fileType,
+          fileSize: data.fileSize,
+          downloadUrl: data.downloadUrl,
+        });
       }
 
       if (data.type === "message") {
@@ -122,102 +71,129 @@ function Room() {
       }
     };
 
-    ws.current.addEventListener("message", handelMessage);
+    ws.current.addEventListener("message", handleMessage);
 
     return () => {
-      if (ws.current) {
-        ws.current?.removeEventListener("message", handelMessage);
-      }
+      ws.current?.removeEventListener("message", handleMessage);
     };
-  }, [isReady]);
+  }, [isReady, slug]);
 
   const sendMessage = () => {
-    if (!message.trim() || !ws?.current) return;
-    if (ws.current.readyState !== WebSocket.OPEN) {
-      console.warn("WebSocket not connected");
-      return;
-    }
-
-    ws.current.send(JSON.stringify({ type: "message", roomId: slug, message }));
-    setMessages((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), message, from: "You" },
-    ]);
+    if (!message.trim() || !ws.current) return;
+    ws.current.send(JSON.stringify({ type: "message", message, roomId: slug }));
     setMessage("");
   };
 
-  const copyRoomLink = async () => {
-    await navigator.clipboard.writeText(window.location.href);
-    alert("Room link copied!");
-  };
-
   return (
-    <div className="room-container">
-      {/* Header */}
-      <header className="room-header">
-        <div>
-          <h2>Room Chat</h2>
-          <p className="room-id">ID: {slug}</p>
+    <div className="dashboard-container">
+      <aside className="sidebar">
+        <div className="logo">
+          <h2>
+            Cloud<span>Drop</span>
+          </h2>
         </div>
-
-        <div className="room-actions">
-          <button onClick={copyRoomLink}>Copy Link</button>
-          <span className={`status ${connected ? "online" : "offline"}`}>
-            {connected ? "Connected" : "Disconnected"}
-          </span>
+        <div className="room-info">
+          <label>Room ID</label>
+          <div className="room-badge">{slug || "Unknown"}</div>
         </div>
-      </header>
-
-      {/* Chat Messages */}
-      <div className="chat-container">
-        {messages.length === 0 && (
-          <div className="empty-state">
-            <p>No messages yet</p>
-            <span>Start the conversation 👋</span>
+        <div className="room-info">
+          <label>Status</label>
+          <div className="room-badge">
+            {connected ? "🟢 Connected" : "🔴 Connecting..."}
           </div>
-        )}
+        </div>
+      </aside>
 
-        {downloadUrl && (
-          <div className="feed-item">
-            <div className="file-icon">📥</div>
-            <div className="file-info">
-              <span className="file-name">{downloadFileName}</span>
-              <span className="file-meta">Ready to download</span>
+      <main className="main-content">
+        <header className="top-bar">
+          <div className="search-bar">
+            <input type="text" placeholder="Room activity..." readOnly />
+          </div>
+        </header>
+
+        <section className="dashboard-grid">
+          <div className="upload-card">
+            <div className="upload-card-header">
+              <h3>Shared File</h3>
             </div>
-            <a
-              href={downloadUrl}
-              download={downloadFileName}
-              className="btn-download"
-            >
-              Download
-            </a>
-          </div>
-        )}
-      </div>
 
-      {receiveProgress > 0 && receiveProgress < 100 && (
-        <div>
-          <p>Receiving file... {receiveProgress}%</p>
-          <div className="progress-mini">
-            <div
-              className="progress-fill"
-              style={{ width: `${receiveProgress}%` }}
-            />
+            {fileInfo ? (
+              <div className="file-preview">
+                <div className="file-preview-row">
+                  <div className="file-icon-box">📥</div>
+                  <div className="file-meta-block">
+                    <span className="file-name-text">{fileInfo.fileName}</span>
+                    <span className="file-size-text">
+                      {fileInfo.fileSize
+                        ? `${(fileInfo.fileSize / 1024).toFixed(1)} KB · `
+                        : ""}
+                      {fileInfo.fileType || "Unknown type"}
+                    </span>
+                  </div>
+                </div>
+                <div className="upload-card-footer">
+                  <a
+                    href={fileInfo.downloadUrl}
+                    download={fileInfo.fileName}
+                    className="btn-primary"
+                    style={{
+                      width: "100%",
+                      textAlign: "center",
+                      textDecoration: "none",
+                      display: "block",
+                    }}
+                  >
+                    ⬇ Download
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="dropzone">
+                <span className="icon">⏳</span>
+                <h3>Waiting for file...</h3>
+                <p>The sender will share a file shortly</p>
+              </div>
+            )}
           </div>
+
+          <div className="feed-card">
+            <div className="feed-card-header">
+              <h3>Room Chat</h3>
+            </div>
+
+            <div className="feed-list">
+              {messages.length === 0 ? (
+                <div className="feed-empty">
+                  <span className="feed-empty-icon">📭</span>
+                  No messages yet
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <div key={msg.id} className="feed-item">
+                    <span className="feed-from">{msg.from?.slice(0, 8)}:</span>
+                    <span className="feed-message">{msg.message}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
+        <div className="debug-section">
+          <label htmlFor="room-message">Message</label>
+          <input
+            id="room-message"
+            type="text"
+            placeholder="Write a message..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          />
+          <button className="btn-primary" onClick={sendMessage}>
+            Send
+          </button>
         </div>
-      )}
-
-      {/* Input Area */}
-      <div className="input-container">
-        <input
-          type="text"
-          placeholder="Write a message..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-        />
-        {/* <button onClick={sendMessage}>Send</button> */}
-      </div>
+      </main>
     </div>
   );
 }
