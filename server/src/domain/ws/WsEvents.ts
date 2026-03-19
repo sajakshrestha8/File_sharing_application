@@ -24,9 +24,15 @@ export type FileReadyEvent = {
   downloadUrl: string;
 };
 
+export type ErrorEvent = {
+  type: "error";
+  message: string;
+};
+
 export type WsServerEvent =
   | RoomCreatedEvent
   | JoinAckEvent
   | ChatMessageRelayedEvent
-  | FileReadyEvent;
+  | FileReadyEvent
+  | ErrorEvent;
 

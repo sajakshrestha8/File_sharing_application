@@ -16,5 +16,7 @@ export interface FileStorage {
     size: number;
     storedFileName: string;
   }): StoredFile;
+
+  resolveStoredPath(storedFileName: string): string;
 }
 

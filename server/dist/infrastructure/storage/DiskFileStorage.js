@@ -13,7 +13,9 @@ class DiskFileStorage {
         this.uploadedFilesDir = uploadedFilesDir;
     }
     buildStoredFile(input) {
-        const downloadUrl = `${this.baseUrl}/uploadedFiles/${encodeURIComponent(input.storedFileName)}`;
+        // Keep the URL shape compatible with the existing production server.
+        // The current JS server uses `req.file.filename` directly.
+        const downloadUrl = `${this.baseUrl}/uploadedFiles/${input.storedFileName}`;
         return {
             fileName: input.originalName,
             fileType: input.mimeType,
