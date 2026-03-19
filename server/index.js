@@ -35,7 +35,7 @@ const upload = multer({
 
 app.use(
   "/uploadedFiles",
-  express.static(path.join(__dirname, "uploadedFiles"))
+  express.static(path.join(__dirname, "uploadedFiles")),
 );
 
 const sockets = {};
@@ -82,7 +82,7 @@ app.post("/files/upload", upload.single("file"), async (req, res) => {
     if (!roomId) throw new Error("roomId is required");
 
     const downloadUrl = `http://localhost:8080/uploadedFiles/${req.file.filename}`;
-    console.log(`✅ File uploaded: ${req.file.filename} for room: ${roomId}`);
+    console.log(`File uploaded: ${req.file.filename} for room: ${roomId}`);
 
     const users = await redisClient.sMembers(`room:${roomId}`);
     console.log(`Notifying ${users.length} users in room ${roomId}:`, users);
@@ -97,7 +97,7 @@ app.post("/files/upload", upload.single("file"), async (req, res) => {
             fileType: req.file.mimetype,
             fileSize: req.file.size,
             downloadUrl,
-          })
+          }),
         );
       }
     });
@@ -122,7 +122,7 @@ app.get("/files/:filename", (req, res) => {
 });
 
 const server = app.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT}`)
+  console.log(`Server running on port ${PORT}`),
 );
 
 const wss = new webSocket.Server({ server });
@@ -130,10 +130,10 @@ const wss = new webSocket.Server({ server });
 wss.on("connection", (ws) => {
   ws.id = randomUUID();
   sockets[ws.id] = ws;
-  console.log(`✅ Connected: ${ws.id} | Total: ${Object.keys(sockets).length}`);
+  console.log(`Connected: ${ws.id} | Total: ${Object.keys(sockets).length}`);
 
   ws.on("close", async () => {
-    console.log(`❌ Disconnected: ${ws.id}`);
+    console.log(`Disconnected: ${ws.id}`);
     delete sockets[ws.id];
 
     try {
@@ -160,7 +160,7 @@ wss.on("connection", (ws) => {
       return;
     }
 
-    console.log(`📨 [${message.type}] from ${ws.id}`);
+    console.log(`[${message.type}] from ${ws.id}`);
 
     if (message.type === "createRoom") {
       const createdRoomId = randomUUID();
@@ -168,10 +168,10 @@ wss.on("connection", (ws) => {
       await redisClient.sAdd(`room:${createdRoomId}`, ws.id);
       sockets[ws.id] = ws;
 
-      console.log(`🏠 Room created: ${createdRoomId} by ${ws.id}`);
+      console.log(`Room created: ${createdRoomId} by ${ws.id}`);
       console.log(
         `Room members:`,
-        await redisClient.sMembers(`room:${createdRoomId}`)
+        await redisClient.sMembers(`room:${createdRoomId}`),
       );
 
       ws.send(
@@ -179,7 +179,7 @@ wss.on("connection", (ws) => {
           type: "room-created",
           message: "Room created successfully",
           roomId: createdRoomId,
-        })
+        }),
       );
       return;
     }
@@ -187,7 +187,7 @@ wss.on("connection", (ws) => {
     if (message.type === "join") {
       if (!message.roomId) {
         ws.send(
-          JSON.stringify({ type: "error", message: "roomId is required" })
+          JSON.stringify({ type: "error", message: "roomId is required" }),
         );
         return;
       }
@@ -204,7 +204,7 @@ wss.on("connection", (ws) => {
           type: "join-ack",
           roomId: message.roomId,
           message: "Joined room successfully",
-        })
+        }),
       );
       return;
     }
@@ -212,14 +212,14 @@ wss.on("connection", (ws) => {
     if (message.type === "message") {
       if (!message.roomId) {
         ws.send(
-          JSON.stringify({ type: "error", message: "roomId is required" })
+          JSON.stringify({ type: "error", message: "roomId is required" }),
         );
         return;
       }
 
       const users = await redisClient.sMembers(`room:${message.roomId}`);
       console.log(
-        `💬 Relaying message to ${users.length} users in room ${message.roomId}`
+        `Relaying message to ${users.length} users in room ${message.roomId}`,
       );
 
       users.forEach((userId) => {
@@ -230,7 +230,7 @@ wss.on("connection", (ws) => {
               type: "message",
               message: message.message,
               from: ws.id,
-            })
+            }),
           );
         }
       });

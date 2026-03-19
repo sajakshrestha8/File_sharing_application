@@ -4,7 +4,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon index.js"
+    "start": "nodemon index.js",
+    "dev:ts": "nodemon --watch src --exec ts-node src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start:ts": "node dist/main.js"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +27,14 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
-    "prisma": "^6.19.2"
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.5.0",
+    "@types/ws": "^8.18.1",
+    "prisma": "^6.19.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }
