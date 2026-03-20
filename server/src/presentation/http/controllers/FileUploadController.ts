@@ -28,6 +28,8 @@ export const fileUploadController =
         },
       });
 
+      console.log(`File uploaded: ${file.filename} for room: ${roomId}`);
+
       res.status(200).json({
         success: true,
         fileName: file.originalname,
@@ -36,6 +38,7 @@ export const fileUploadController =
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown error";
+      console.error("Upload error:", message);
       res.status(400).json({ success: false, error: message });
     }
   };

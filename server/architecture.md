@@ -149,3 +149,14 @@ flowchart TD
 - Keep message/event payloads centralized (single source of truth for WebSocket “types”).
 - Ensure infrastructure dependencies (Prisma/Redis/fs/ws) are injected into use cases via interfaces.
 
+## Runtime & entrypoint
+
+- **DDD entry**: `server/src/main.ts` wires `buildDependencies` → `createHttpApp` → HTTP server + `WsGateway` (WebSocket).
+- **Development**: `npm run dev` (or `npm run dev:ts`) runs `ts-node src/main.ts` with reload on `src/` changes.
+- **Production**: `npm start` runs `prestart` (`npm run build`) then `node dist/main.js`.
+- **Compatibility**: `server/index.js` loads `./dist/main.js` so `node index.js` works after a build.
+- **Legacy monolith** (reference only): `npm run start:legacy` runs `index.legacy.js`.
+- **Environment**:
+  - `PORT` — HTTP + WebSocket listen port (default `8080`).
+  - `PUBLIC_BASE_URL` — base URL used in file download links from uploads (default `http://localhost:<PORT>`).
+

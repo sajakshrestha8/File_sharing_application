@@ -14,5 +14,8 @@ class SocketRegistryInMemory {
     remove(socketId) {
         this.sockets.delete(socketId);
     }
+    size() {
+        return this.sockets.size;
+    }
 }
 exports.SocketRegistryInMemory = SocketRegistryInMemory;

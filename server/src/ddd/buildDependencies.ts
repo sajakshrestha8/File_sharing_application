@@ -21,7 +21,13 @@ export type DddAppWiring = {
   wsDeps: WsGatewayDeps;
 };
 
-export const buildDependencies = (): DddAppWiring => {
+export type BuildDepsOptions = {
+  port: number;
+  /** Base URL for file download links (e.g. http://localhost:8080). */
+  publicBaseUrl: string;
+};
+
+export const buildDependencies = (options: BuildDepsOptions): DddAppWiring => {
   // Existing JS infra adapters (Prisma + Redis) are CJS exports.
   // We intentionally keep this composition-root in TS so later steps can fully migrate runtime.
   // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -34,8 +40,7 @@ export const buildDependencies = (): DddAppWiring => {
   const userRepository = new PrismaUserRepository(prisma);
 
   const uploadedFilesDir = path.resolve(__dirname, "../../uploadedFiles");
-  const baseUrl = "http://localhost:8080";
-  const diskFileStorage = new DiskFileStorage(baseUrl, uploadedFilesDir);
+  const diskFileStorage = new DiskFileStorage(options.publicBaseUrl, uploadedFilesDir);
   const websocketNotifier = new WsNotifier(roomRepository, socketRegistry);
 
   const registerUseCase = new RegisterUserUseCase(userRepository);
@@ -56,7 +61,7 @@ export const buildDependencies = (): DddAppWiring => {
     diskFileStorage,
     fileStorageForDownload: diskFileStorage,
     uploadedFilesDir,
-    port: 8080,
+    port: options.port,
   };
 
   const wsDeps: WsGatewayDeps = {

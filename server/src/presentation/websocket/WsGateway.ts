@@ -32,8 +32,12 @@ export class WsGateway {
     socket.id = randomUUID();
 
     this.deps.socketRegistry.register(socket.id, ws);
+    console.log(
+      `Connected: ${socket.id} | Total: ${this.deps.socketRegistry.size()}`,
+    );
 
     ws.on("close", async () => {
+      console.log(`Disconnected: ${socket.id}`);
       try {
         const allRooms = await this.deps.roomMembershipRepository.getAllRooms();
         for (const roomId of allRooms) {
@@ -63,6 +67,8 @@ export class WsGateway {
       }
 
       if (!message?.type) return;
+
+      console.log(`[${message.type}] from ${socket.id}`);
 
       try {
         switch (message.type) {

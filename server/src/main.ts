@@ -1,11 +1,20 @@
-/**
- * Temporary TypeScript entrypoint.
- *
- * This step scaffolds a DDD-friendly TS backend without changing runtime behavior yet.
- * The current JS server (`server/index.js`) remains the actual implementation until
- * later steps replace it with the DDD layers.
- */
-// Use CommonJS `require` to avoid having TypeScript try to typecheck/emit JS files.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-require("../index");
+import http from "http";
 
+import { buildDependencies } from "./ddd/buildDependencies";
+import { createHttpApp } from "./presentation/http/createHttpApp";
+import { WsGateway } from "./presentation/websocket/WsGateway";
+import { attachWsServer } from "./presentation/websocket/attachWsServer";
+
+const port = Number(process.env.PORT) || 8080;
+const publicBaseUrl =
+  process.env.PUBLIC_BASE_URL ?? `http://localhost:${port}`;
+
+const { httpDeps, wsDeps } = buildDependencies({ port, publicBaseUrl });
+const app = createHttpApp(httpDeps);
+const server = http.createServer(app);
+const gateway = new WsGateway(wsDeps);
+attachWsServer(server, gateway);
+
+server.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});

@@ -14,5 +14,9 @@ export class SocketRegistryInMemory implements SocketRegistry {
   remove(socketId: string): void {
     this.sockets.delete(socketId);
   }
+
+  size(): number {
+    return this.sockets.size;
+  }
 }
 
