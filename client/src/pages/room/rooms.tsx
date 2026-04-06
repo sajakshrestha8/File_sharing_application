@@ -84,6 +84,8 @@ function Room() {
     setMessage("");
   };
 
+  console.log({ fileInfo });
+
   return (
     <div className="dashboard-container">
       <aside className="sidebar">

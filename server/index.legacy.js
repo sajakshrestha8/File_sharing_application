@@ -35,7 +35,7 @@ const upload = multer({
 
 app.use(
   "/uploadedFiles",
-  express.static(path.join(__dirname, "uploadedFiles")),
+  express.static(path.join(__dirname, "uploadedFiles"))
 );
 
 const sockets = {};
@@ -85,6 +85,7 @@ app.post("/files/upload", upload.single("file"), async (req, res) => {
     console.log(`File uploaded: ${req.file.filename} for room: ${roomId}`);
 
     const users = await redisClient.sMembers(`room:${roomId}`);
+    console.log(users, "--------------------->..................");
     console.log(`Notifying ${users.length} users in room ${roomId}:`, users);
 
     users.forEach((userId) => {
@@ -97,7 +98,7 @@ app.post("/files/upload", upload.single("file"), async (req, res) => {
             fileType: req.file.mimetype,
             fileSize: req.file.size,
             downloadUrl,
-          }),
+          })
         );
       }
     });
@@ -122,7 +123,7 @@ app.get("/files/:filename", (req, res) => {
 });
 
 const server = app.listen(PORT, () =>
-  console.log(`Server running on port ${PORT}`),
+  console.log(`Server running on port ${PORT}`)
 );
 
 const wss = new webSocket.Server({ server });
@@ -171,7 +172,7 @@ wss.on("connection", (ws) => {
       console.log(`Room created: ${createdRoomId} by ${ws.id}`);
       console.log(
         `Room members:`,
-        await redisClient.sMembers(`room:${createdRoomId}`),
+        await redisClient.sMembers(`room:${createdRoomId}`)
       );
 
       ws.send(
@@ -179,7 +180,7 @@ wss.on("connection", (ws) => {
           type: "room-created",
           message: "Room created successfully",
           roomId: createdRoomId,
-        }),
+        })
       );
       return;
     }
@@ -187,7 +188,7 @@ wss.on("connection", (ws) => {
     if (message.type === "join") {
       if (!message.roomId) {
         ws.send(
-          JSON.stringify({ type: "error", message: "roomId is required" }),
+          JSON.stringify({ type: "error", message: "roomId is required" })
         );
         return;
       }
@@ -204,7 +205,7 @@ wss.on("connection", (ws) => {
           type: "join-ack",
           roomId: message.roomId,
           message: "Joined room successfully",
-        }),
+        })
       );
       return;
     }
@@ -212,14 +213,14 @@ wss.on("connection", (ws) => {
     if (message.type === "message") {
       if (!message.roomId) {
         ws.send(
-          JSON.stringify({ type: "error", message: "roomId is required" }),
+          JSON.stringify({ type: "error", message: "roomId is required" })
         );
         return;
       }
 
       const users = await redisClient.sMembers(`room:${message.roomId}`);
       console.log(
-        `Relaying message to ${users.length} users in room ${message.roomId}`,
+        `Relaying message to ${users.length} users in room ${message.roomId}`
       );
 
       users.forEach((userId) => {
@@ -230,7 +231,7 @@ wss.on("connection", (ws) => {
               type: "message",
               message: message.message,
               from: ws.id,
-            }),
+            })
           );
         }
       });
