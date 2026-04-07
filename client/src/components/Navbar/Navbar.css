@@ -1,0 +1,126 @@
+:root {
+  --primary: #f97316; /* CloudNest Orange */
+  --primary-foreground: #ffffff;
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --foreground: #1e293b;
+  --muted-foreground: #64748b;
+  --border: #f1f5f9;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.header-container {
+  display: flex;
+  height: 64px; /* h-16 */
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px; /* Equivalent to container padding */
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Logo Section */
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-icon-wrapper {
+  display: flex;
+  height: 36px;
+  width: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background-color: var(--primary);
+}
+
+.logo-icon {
+  height: 20px;
+  width: 20px;
+  color: var(--primary-foreground);
+}
+
+.logo-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--foreground);
+}
+
+/* Navigation Section */
+.nav-menu {
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (min-width: 768px) {
+  .nav-menu {
+    display: flex;
+  }
+}
+
+.nav-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.nav-button:hover {
+  color: var(--foreground);
+  background-color: var(--border);
+}
+
+/* Actions Section */
+.actions-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 32px;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  transition: background-color 0.2s;
+}
+
+.icon-button:hover {
+  background-color: var(--border);
+}
+
+.avatar {
+  display: flex;
+  height: 32px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: var(--primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--primary-foreground);
+}

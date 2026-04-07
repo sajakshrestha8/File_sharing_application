@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./dashboard.css";
 import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../../context/websocket.context";
+import Navbar from "../../components/Navbar/Navbar";
 
 function Dashboard() {
   const { ws, isReady } = useWebSocket();
@@ -125,21 +126,6 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="logo">
-          <h2>
-            Cloud<span>Drop</span>
-          </h2>
-        </div>
-        <div className="room-info">
-          <label>Active Room</label>
-          <div className="room-badge">Global-Share</div>
-        </div>
-        <nav className="sidebar-nav"></nav>
-      </aside>
-
-      {/* Main Content */}
       <main className="main-content">
         <header className="top-bar">
           <div className="search-bar">
@@ -148,6 +134,7 @@ function Dashboard() {
           <button className="btn-primary">Join New Room</button>
         </header>
 
+        <Navbar />
         <section className="dashboard-grid">
           {/* Upload Card */}
           <div className="upload-card">
