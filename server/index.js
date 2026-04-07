@@ -74,6 +74,8 @@ app.post("/login", async (req, res) => {
   }
 });
 
+const latestFiles = {};
+
 app.post("/files/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) throw new Error("No file uploaded");
@@ -81,24 +83,28 @@ app.post("/files/upload", upload.single("file"), async (req, res) => {
     const { roomId } = req.body;
     if (!roomId) throw new Error("roomId is required");
 
+    const filePayload = {
+      type: "file-ready",
+      fileName: req.file.originalname,
+      fileType: req.file.mimetype,
+      fileSize: req.file.size,
+      downloadUrl: `http://localhost:8080/uploadedFiles/${req.file.filename}`,
+    };
+
+    latestFiles[roomId] = filePayload;
+
+    console.log(latestFiles, "-------=================-------------");
+
     const downloadUrl = `http://localhost:8080/uploadedFiles/${req.file.filename}`;
-    console.log(`✅ File uploaded: ${req.file.filename} for room: ${roomId}`);
+    console.log(`File uploaded: ${req.file.filename} for room: ${roomId}`);
 
     const users = await redisClient.sMembers(`room:${roomId}`);
     console.log(`Notifying ${users.length} users in room ${roomId}:`, users);
 
     users.forEach((userId) => {
       const socket = sockets[userId];
-      if (socket && socket.readyState === webSocket.OPEN) {
-        socket.send(
-          JSON.stringify({
-            type: "file-ready",
-            fileName: req.file.originalname,
-            fileType: req.file.mimetype,
-            fileSize: req.file.size,
-            downloadUrl,
-          })
-        );
+      if (socket?.readyState === webSocket.OPEN) {
+        socket.send(JSON.stringify(filePayload));
       }
     });
 
@@ -122,7 +128,7 @@ app.get("/files/:filename", (req, res) => {
 });
 
 const server = app.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT}`)
+  console.log(`Server running on port ${PORT}`)
 );
 
 const wss = new webSocket.Server({ server });
@@ -130,10 +136,10 @@ const wss = new webSocket.Server({ server });
 wss.on("connection", (ws) => {
   ws.id = randomUUID();
   sockets[ws.id] = ws;
-  console.log(`✅ Connected: ${ws.id} | Total: ${Object.keys(sockets).length}`);
+  console.log(`Connected: ${ws.id} | Total: ${Object.keys(sockets).length}`);
 
   ws.on("close", async () => {
-    console.log(`❌ Disconnected: ${ws.id}`);
+    console.log(`Disconnected: ${ws.id}`);
     delete sockets[ws.id];
 
     try {
@@ -160,7 +166,7 @@ wss.on("connection", (ws) => {
       return;
     }
 
-    console.log(`📨 [${message.type}] from ${ws.id}`);
+    console.log(`[${message.type}] from ${ws.id}`);
 
     if (message.type === "createRoom") {
       const createdRoomId = randomUUID();
@@ -168,7 +174,7 @@ wss.on("connection", (ws) => {
       await redisClient.sAdd(`room:${createdRoomId}`, ws.id);
       sockets[ws.id] = ws;
 
-      console.log(`🏠 Room created: ${createdRoomId} by ${ws.id}`);
+      console.log(`Room created: ${createdRoomId} by ${ws.id}`);
       console.log(
         `Room members:`,
         await redisClient.sMembers(`room:${createdRoomId}`)
@@ -187,7 +193,10 @@ wss.on("connection", (ws) => {
     if (message.type === "join") {
       if (!message.roomId) {
         ws.send(
-          JSON.stringify({ type: "error", message: "roomId is required" })
+          JSON.stringify({
+            type: "error",
+            message: "roomId is required",
+          })
         );
         return;
       }
@@ -196,8 +205,8 @@ wss.on("connection", (ws) => {
       sockets[ws.id] = ws;
 
       const members = await redisClient.sMembers(`room:${message.roomId}`);
-      console.log(`👥 ${ws.id} joined room ${message.roomId}`);
-      console.log(`Room members:`, members);
+      console.log(`${ws.id} joined room ${message.roomId}`);
+      console.log("Room members:", members);
 
       ws.send(
         JSON.stringify({
@@ -206,6 +215,14 @@ wss.on("connection", (ws) => {
           message: "Joined room successfully",
         })
       );
+
+      const latestFile = latestFiles[message.roomId];
+
+      if (latestFile) {
+        console.log(`Sending latest file to ${ws.id}`);
+        ws.send(JSON.stringify(latestFile));
+      }
+
       return;
     }
 
@@ -219,7 +236,7 @@ wss.on("connection", (ws) => {
 
       const users = await redisClient.sMembers(`room:${message.roomId}`);
       console.log(
-        `💬 Relaying message to ${users.length} users in room ${message.roomId}`
+        `Relaying message to ${users.length} users in room ${message.roomId}`
       );
 
       users.forEach((userId) => {

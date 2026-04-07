@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../../context/websocket.context";
 
 function Dashboard() {
-  const { ws, isReady, setPendingFileMeta } = useWebSocket();
+  const { ws, isReady } = useWebSocket();
   const [message, setMessage] = useState<string>("");
   const [responseFromServer, setResponseFromServer] = useState<string>("");
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -99,6 +99,7 @@ function Dashboard() {
 
       xhr.onload = () => {
         const response = JSON.parse(xhr.responseText);
+        console.log({ response });
         if (xhr.status === 200 && response.success) {
           setIsSending(false);
           setUploadProgress(0);
@@ -114,6 +115,7 @@ function Dashboard() {
         setIsSending(false);
       };
 
+      // ws.current?.send(JSON.stringify({ type: "" }));
       xhr.open("POST", "http://localhost:8080/files/upload");
       xhr.send(formData);
     } catch (error) {

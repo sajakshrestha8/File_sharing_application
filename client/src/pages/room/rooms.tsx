@@ -27,11 +27,9 @@ function Room() {
   useEffect(() => {
     if (!isReady || !ws.current) return;
     if (!slug) {
-      console.error("No roomId in URL");
       return;
     }
 
-    console.log("Joining room:", slug);
     ws.current.send(JSON.stringify({ type: "join", roomId: slug }));
 
     const handleMessage = (event: MessageEvent) => {
@@ -49,12 +47,10 @@ function Room() {
       console.log("Room received:", data);
 
       if (data.type === "join-ack") {
-        console.log("✅ Joined room:", data.roomId);
         setConnected(true);
       }
 
       if (data.type === "file-ready") {
-        console.log("📥 File ready:", data.downloadUrl);
         setFileInfo({
           fileName: data.fileName,
           fileType: data.fileType,
