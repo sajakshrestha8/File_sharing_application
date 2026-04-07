@@ -80,7 +80,26 @@ function Room() {
     setMessage("");
   };
 
-  console.log({ fileInfo });
+  const downloadFile = async (url: string, fileName: string) => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Download failed");
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download error:", error);
+    }
+  };
 
   return (
     <div className="dashboard-container">
@@ -118,7 +137,6 @@ function Room() {
             {fileInfo ? (
               <div className="file-preview">
                 <div className="file-preview-row">
-                  <div className="file-icon-box">📥</div>
                   <div className="file-meta-block">
                     <span className="file-name-text">{fileInfo.fileName}</span>
                     <span className="file-size-text">
@@ -130,9 +148,7 @@ function Room() {
                   </div>
                 </div>
                 <div className="upload-card-footer">
-                  <a
-                    href={fileInfo.downloadUrl}
-                    download={fileInfo.fileName}
+                  <button
                     className="btn-primary"
                     style={{
                       width: "100%",
@@ -140,9 +156,12 @@ function Room() {
                       textDecoration: "none",
                       display: "block",
                     }}
+                    onClick={() => {
+                      downloadFile(fileInfo.downloadUrl, fileInfo.fileName);
+                    }}
                   >
-                    ⬇ Download
-                  </a>
+                    Download
+                  </button>
                 </div>
               </div>
             ) : (

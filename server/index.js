@@ -35,6 +35,11 @@ const upload = multer({
 
 app.use(
   "/uploadedFiles",
+  (_req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET");
+    next();
+  },
   express.static(path.join(__dirname, "uploadedFiles"))
 );
 
