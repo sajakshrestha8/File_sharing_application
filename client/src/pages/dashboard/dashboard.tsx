@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import "./dashboard.css";
 import { useNavigate } from "react-router-dom";
 import { useWebSocket } from "../../context/websocket.context";
 import Navbar from "../../components/Navbar/Navbar";
+import FileUploader from "../../components/FileUploader/FileUploader";
+import "./dashboard.css";
 
 function Dashboard() {
   const { ws, isReady } = useWebSocket();
+  const navigate = useNavigate();
+
   const [message, setMessage] = useState<string>("");
   const [responseFromServer, setResponseFromServer] = useState<string>("");
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -13,10 +16,9 @@ function Dashboard() {
   const [isSending, setIsSending] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
 
-  const navigate = useNavigate();
+  const hasStartedSending = useRef(false);
 
   useEffect(() => {
-    // Initalize Websocket connection
     if (!isReady || !ws.current) return;
 
     const handleMessage = (event: MessageEvent) => {
@@ -33,32 +35,21 @@ function Dashboard() {
     };
 
     ws.current.addEventListener("message", handleMessage);
-
-    return () => {
-      ws.current?.removeEventListener("message", handleMessage);
-    };
-  }, [isReady]);
-
-  const hasStartedSending = useRef(false);
+    return () => ws.current?.removeEventListener("message", handleMessage);
+  }, [isReady, ws, navigate]);
 
   useEffect(() => {
     if (roomId && file && !isSending && !hasStartedSending.current) {
       hasStartedSending.current = true;
       startSendingFile(roomId);
     }
-  }, [roomId]);
+  }, [roomId, file, isSending]);
 
-  const sendMessage = () => {
-    if (message.length <= 0 || !ws) return;
-    ws.current?.send(JSON.stringify({ type: "join", message, roomId }));
-    setMessage("");
-  };
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
+  const handleFileSelection = (files: FileList) => {
+    const selectedFile = files[0];
     if (!selectedFile) return;
 
-    if (selectedFile?.size > 50 * 1024 * 1024) {
+    if (selectedFile.size > 50 * 1024 * 1024) {
       alert("File size exceeds 50MB limit");
       return;
     }
@@ -66,62 +57,72 @@ function Dashboard() {
     setFile(selectedFile);
   };
 
-  const sendFile = () => {
-    if (!file || !ws) return;
+  const initiateShare = () => {
+    if (!file || !ws.current) return;
 
     if (roomId) {
       if (!hasStartedSending.current) {
         hasStartedSending.current = true;
         startSendingFile(roomId);
       }
-      return;
+    } else {
+      ws.current.send(JSON.stringify({ type: "createRoom" }));
     }
-
-    ws.current?.send(JSON.stringify({ type: "createRoom" }));
   };
 
-  const startSendingFile = (currentRoomId: string | null) => {
-    if (!file || !currentRoomId) return;
+  const startSendingFile = (currentRoomId: string) => {
+    if (!file) return;
     setIsSending(true);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("roomId", currentRoomId);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("roomId", currentRoomId);
 
-      const xhr = new XMLHttpRequest();
+    const xhr = new XMLHttpRequest();
 
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const progress = Math.round((e.loaded / e.total) * 100);
-          setUploadProgress(progress);
-        }
-      };
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        setUploadProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
 
-      xhr.onload = () => {
+    xhr.onload = () => {
+      try {
         const response = JSON.parse(xhr.responseText);
-        console.log({ response });
         if (xhr.status === 200 && response.success) {
           setIsSending(false);
           setUploadProgress(0);
-
           navigate(`/${currentRoomId}`);
         } else {
-          throw new Error(response.error || "Upload failed");
+          alert(response.error || "Upload failed");
+          setIsSending(false);
         }
-      };
-
-      xhr.onerror = (error) => {
-        console.log("facing some errpr", error);
+      } catch (err) {
+        console.error("Parse error", err);
         setIsSending(false);
-      };
+      }
+    };
 
-      // ws.current?.send(JSON.stringify({ type: "" }));
-      xhr.open("POST", "http://localhost:8080/files/upload");
-      xhr.send(formData);
-    } catch (error) {
-      console.log(error);
-    }
+    xhr.onerror = () => {
+      alert("Network error during upload");
+      setIsSending(false);
+    };
+
+    xhr.open("POST", "http://localhost:8080/files/upload");
+    xhr.send(formData);
+  };
+
+  const sendMessage = () => {
+    if (message.trim().length === 0 || !ws.current) return;
+    ws.current.send(JSON.stringify({ type: "join", message, roomId }));
+    setMessage("");
+  };
+
+  const resetSelection = () => {
+    setFile(null);
+    setRoomId(null);
+    hasStartedSending.current = false;
+    setUploadProgress(0);
   };
 
   return (
@@ -135,23 +136,24 @@ function Dashboard() {
         </header>
 
         <Navbar />
-        <section className="dashboard-grid">
-          {/* Upload Card */}
-          <div className="upload-card">
-            <div className="upload-card-header">
-              <h3>Upload File</h3>
-            </div>
 
-            {file ? (
-              <>
+        <section className="dashboard-grid">
+          <div className="upload-section">
+            {!file ? (
+              <FileUploader onFileSelect={handleFileSelection} />
+            ) : (
+              <div className="upload-card">
+                <div className="upload-card-header">
+                  <h3>Selected File</h3>
+                </div>
                 <div className="file-preview">
                   <div className="file-preview-row">
                     <div className="file-icon-box">📄</div>
                     <div className="file-meta-block">
                       <span className="file-name-text">{file.name}</span>
                       <span className="file-size-text">
-                        {(file.size / 1024).toFixed(1)} KB &middot;{" "}
-                        {file.type || "Unknown type"}
+                        {(file.size / (1024 * 1024)).toFixed(2)} MB &middot;{" "}
+                        {file.type || "Unknown"}
                       </span>
                     </div>
                   </div>
@@ -170,36 +172,25 @@ function Dashboard() {
                       </div>
                     </div>
                   )}
-                </div>
 
-                {!isSending && (
-                  <div className="upload-card-footer">
-                    <button
-                      className="btn-primary"
-                      onClick={sendFile}
-                      disabled={isSending}
-                      style={{ width: "100%" }}
-                    >
-                      Share File
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="dropzone">
-                <span className="icon">📂</span>
-                <h3>Drop your file here</h3>
-                <p>or click to browse &nbsp;·&nbsp; Max 50 MB</p>
-                <input
-                  type="file"
-                  className="file-input"
-                  onChange={(e) => handleFileInput(e)}
-                />
+                  {!isSending && (
+                    <div className="upload-actions">
+                      <button className="btn-primary" onClick={initiateShare}>
+                        Share File
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        onClick={resetSelection}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Activity Feed */}
           <div className="feed-card">
             <div className="feed-card-header">
               <h3>Recent Activity</h3>
@@ -211,25 +202,26 @@ function Dashboard() {
           </div>
         </section>
 
-        {/* Debug / Message Section */}
         <div className="debug-section">
-          <label htmlFor="message">Message</label>
-          <input
-            id="message"
-            type="text"
-            placeholder="Write a message to server…"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          />
-          <button className="btn-primary" onClick={sendMessage}>
-            Send
-          </button>
+          <div className="input-group">
+            <input
+              type="text"
+              placeholder="Write a message to server…"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            />
+            <button className="btn-primary" onClick={sendMessage}>
+              Send
+            </button>
+          </div>
         </div>
 
         {responseFromServer && (
           <div className="server-response">
-            <label>Server: {responseFromServer}</label>
+            <p>
+              <strong>Server Log:</strong> {responseFromServer}
+            </p>
           </div>
         )}
       </main>
