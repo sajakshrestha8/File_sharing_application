@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useWebSocket } from "../../context/websocket.context";
-
-interface ChatMessage {
-  id: string;
-  message: string;
-  from?: string;
-}
+import RoomSidebar from "../../components/RoomSideBar/RoomSideBar";
+import RoomChat, { ChatMessage } from "../../components/RoomChat/RoomChat";
 
 export interface FileInfo {
   fileName: string;
@@ -103,7 +99,7 @@ function Room() {
 
   return (
     <div className="dashboard-container">
-      <aside className="sidebar">
+      {/* <aside className="sidebar">
         <div className="logo">
           <h2>
             Cloud<span>Drop</span>
@@ -119,7 +115,8 @@ function Room() {
             {connected ? "🟢 Connected" : "🔴 Connecting..."}
           </div>
         </div>
-      </aside>
+      </aside> */}
+      <RoomSidebar roomId={slug} isConnected={connected} peerCount={2} />
 
       <main className="main-content">
         <header className="top-bar">
@@ -173,7 +170,7 @@ function Room() {
             )}
           </div>
 
-          <div className="feed-card">
+          {/* <div className="feed-card">
             <div className="feed-card-header">
               <h3>Room Chat</h3>
             </div>
@@ -193,23 +190,9 @@ function Room() {
                 ))
               )}
             </div>
-          </div>
+          </div> */}
+          <RoomChat initialMessages={messages} onSendMessage={sendMessage} />
         </section>
-
-        <div className="debug-section">
-          <label htmlFor="room-message">Message</label>
-          <input
-            id="room-message"
-            type="text"
-            placeholder="Write a message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          />
-          <button className="btn-primary" onClick={sendMessage}>
-            Send
-          </button>
-        </div>
       </main>
     </div>
   );

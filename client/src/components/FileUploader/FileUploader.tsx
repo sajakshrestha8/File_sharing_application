@@ -103,7 +103,6 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onShare }) => {
       </div>
       <div className="file-preview">
         <div className="file-preview-row">
-          <div className="file-icon-box">📄</div>
           <div className="file-meta-block">
             <span className="file-name-text">{file.name}</span>
             <span className="file-size-text">
