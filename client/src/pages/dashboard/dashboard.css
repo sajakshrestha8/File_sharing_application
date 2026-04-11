@@ -206,9 +206,11 @@ body {
 .dashboard-grid {
   padding: 24px;
   display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 20px;
+  grid-template-columns: 1fr 360px;
+  gap: 40px;
   align-items: start;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── Cards ── */

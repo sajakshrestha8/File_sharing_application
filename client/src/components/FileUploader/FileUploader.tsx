@@ -1,124 +1,143 @@
-import React, { useState, useRef, ChangeEvent, DragEvent } from "react";
+import React, { useState, useRef } from "react";
 
 interface FileUploaderProps {
-  onFileSelect: (files: FileList) => void;
+  onShare: (file: File, setProgress: (p: number) => void) => Promise<void>;
 }
 
-const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect }) => {
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+const FileUploader: React.FC<FileUploaderProps> = ({ onShare }) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDragOver = (e: DragEvent<HTMLDivElement>): void => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (): void => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      handleFiles(files);
+  const handleFiles = (files: FileList | null) => {
+    const selectedFile = files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > 50 * 1024 * 1024) {
+        alert("File size exceeds 50MB limit");
+        return;
+      }
+      setFile(selectedFile);
     }
   };
 
-  const handleClick = (): void => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const files = e.target.files;
-    if (files) {
-      handleFiles(files);
+  const handleStartShare = async () => {
+    if (!file) return;
+    setIsSending(true);
+    try {
+      await onShare(file, setUploadProgress);
+    } catch (err) {
+      setIsSending(false);
+      setUploadProgress(0);
+      console.log(err);
     }
   };
 
-  const handleFiles = (files: FileList): void => {
-    onFileSelect(files);
+  const reset = () => {
+    setFile(null);
+    setIsSending(false);
+    setUploadProgress(0);
   };
 
-  const containerStyle: React.CSSProperties = {
-    width: "100%",
-    maxWidth: "800px",
-    height: "240px",
-    margin: "40px auto",
-    padding: "20px",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    border: `2px dashed ${isDragging ? "#d4a373" : "#e5d5c5"}`,
-    borderRadius: "16px",
-    backgroundColor: "#fffcf9",
-    transition: "all 0.3s ease",
-    cursor: "pointer",
-    fontFamily: "system-ui, -apple-system, sans-serif",
-  };
-
-  const iconContainerStyle: React.CSSProperties = {
-    backgroundColor: "#f9f0e6",
-    padding: "16px",
-    borderRadius: "12px",
-    marginBottom: "16px",
-  };
+  if (!file) {
+    return (
+      <div
+        className={`dropzone ${isDragging ? "dragging" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+        onClick={() => fileInputRef.current?.click()}
+        style={{
+          width: "100%",
+          height: "260px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          border: `2px dashed ${isDragging ? "#d4a373" : "#e5d5c5"}`,
+          borderRadius: "16px",
+          backgroundColor: "#fffcf9",
+          cursor: "pointer",
+        }}
+      >
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={(e) => handleFiles(e.target.files)}
+          style={{ display: "none" }}
+        />
+        <div
+          style={{
+            backgroundColor: "#f9f0e6",
+            padding: "16px",
+            borderRadius: "12px",
+            marginBottom: "16px",
+          }}
+        >
+          📤
+        </div>
+        <h3>Drag & drop files here</h3>
+        <p>
+          or{" "}
+          <span style={{ color: "#d4a373", fontWeight: "bold" }}>
+            browse computer
+          </span>
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={containerStyle}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      onClick={handleClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && handleClick()}
-    >
-      <input
-        type="file"
-        multiple
-        ref={fileInputRef}
-        onChange={handleFileInputChange}
-        style={{ display: "none" }}
-        aria-label="File upload"
-      />
-
-      <div style={iconContainerStyle}>
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#8d5a2d"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="17 8 12 3 7 8" />
-          <line x1="12" y1="3" x2="12" y2="15" />
-        </svg>
+    <div className="upload-card">
+      <div className="upload-card-header">
+        <h3>Selected File</h3>
       </div>
+      <div className="file-preview">
+        <div className="file-preview-row">
+          <div className="file-icon-box">📄</div>
+          <div className="file-meta-block">
+            <span className="file-name-text">{file.name}</span>
+            <span className="file-size-text">
+              {(file.size / (1024 * 1024)).toFixed(2)} MB
+            </span>
+          </div>
+        </div>
 
-      <h3 style={{ margin: "0 0 4px 0", color: "#333", fontSize: "1.25rem" }}>
-        Drag & drop files here
-      </h3>
-
-      <p style={{ margin: "0", color: "#666", fontSize: "0.9rem" }}>
-        or{" "}
-        <span style={{ color: "#d4a373", fontWeight: "bold" }}>
-          browse from your computer
-        </span>
-      </p>
-
-      <p style={{ marginTop: "16px", color: "#999", fontSize: "0.8rem" }}>
-        Supports all file types up to 500MB
-      </p>
+        {isSending ? (
+          <div className="progress-bar-wrap">
+            <div className="progress-bar-label">
+              <span>
+                {uploadProgress === 100 ? "Finalizing..." : "Uploading..."}
+              </span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <div className="progress-mini">
+              <div
+                className="progress-fill"
+                style={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="upload-actions">
+            <button className="btn-primary" onClick={handleStartShare}>
+              Share File
+            </button>
+            <button className="btn-secondary" onClick={reset}>
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
