@@ -12,15 +12,16 @@ export type FileMeta = {
 type WebSocketContextType = {
   ws: React.MutableRefObject<WebSocket | null>;
   isReady: boolean;
+  clientId: string | null | undefined;
   pendingFileMeta: FileMeta | null;
   setPendingFileMeta: (file: FileMeta) => void;
   pendingChunks: ArrayBuffer[];
   setPendingChuncks: React.Dispatch<React.SetStateAction<ArrayBuffer[]>>;
 };
-
 const WebSocketContext = createContext<WebSocketContextType>({
   ws: { current: null },
   isReady: false,
+  clientId: null,
   pendingFileMeta: null,
   setPendingFileMeta: () => {},
   pendingChunks: [],
@@ -34,6 +35,7 @@ export const WebSocketProvider = ({
 }) => {
   const ws = useRef<WebSocket | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [clientId, setClientId] = useState<string | null>();
   const [pendingFileMeta, setPendingFileMeta] = useState<FileMeta | null>(null);
   const [pendingChunks, setPendingChuncks] = useState<ArrayBuffer[]>([]);
 
@@ -63,6 +65,11 @@ export const WebSocketProvider = ({
       try {
         const data = JSON.parse(event.data);
 
+        if (data?.type === "identify" && data?.clientId) {
+          setClientId(data.clientId);
+          return;
+        }
+
         if (data.type === "file-meta") {
           setPendingFileMeta(data);
         }
@@ -85,6 +92,7 @@ export const WebSocketProvider = ({
       value={{
         ws,
         isReady,
+        clientId,
         pendingChunks,
         setPendingChuncks,
         pendingFileMeta,

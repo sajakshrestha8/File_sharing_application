@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Send, MessageCircle } from "lucide-react";
+import { MessageCircle, Send } from "lucide-react";
 
 export interface ChatMessage {
   id: string;
   message: string;
   from: string;
+  isOwn: boolean;
 }
 
 interface RoomChatProps {
@@ -38,7 +39,7 @@ const RoomChat = ({ initialMessages, onSendMessage }: RoomChatProps) => {
     container: {
       display: "flex",
       flexDirection: "column",
-      height: "100%",
+      height: "500px",
       borderRadius: "16px",
       backgroundColor: "#ffffff",
       boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
@@ -74,6 +75,7 @@ const RoomChat = ({ initialMessages, onSendMessage }: RoomChatProps) => {
       display: "flex",
       flexDirection: "column",
       gap: "12px",
+      color: "black",
     },
     messageWrapper: {
       display: "flex",
@@ -114,16 +116,10 @@ const RoomChat = ({ initialMessages, onSendMessage }: RoomChatProps) => {
       color: "#333",
     },
     sendBtn: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      height: "32px",
-      width: "32px",
-      borderRadius: "8px",
+      borderRadius: "4px",
       backgroundColor: "#d4a373",
-      border: "none",
-      color: "white",
       cursor: "pointer",
+      border: "none",
     },
   };
 
@@ -136,23 +132,22 @@ const RoomChat = ({ initialMessages, onSendMessage }: RoomChatProps) => {
       </div>
 
       <div style={styles.messageList}>
-        {chatMessages.map((msg) => (
+        {chatMessages.map((msg, index) => (
           <div
-            key={msg.id}
+            key={index}
             style={{
               ...styles.messageWrapper,
-              // alignSelf: msg.isOwn ? "flex-end" : "flex-start",
-              // alignItems: msg.isOwn ? "flex-end" : "flex-start",
+              alignSelf: msg.isOwn ? "flex-end" : "flex-start",
+              alignItems: msg.isOwn ? "flex-end" : "flex-start",
             }}
           >
-            <span style={styles.userId}>{msg.id.slice(0, 8)}</span>
             <div
               style={{
                 ...styles.bubble,
-                // backgroundColor: msg.isOwn ? "#d4a373" : "#f1f1f1",
-                // color: msg.isOwn ? "#ffffff" : "#333",
-                // borderBottomRightRadius: msg.isOwn ? "4px" : "16px",
-                // borderBottomLeftRadius: msg.isOwn ? "16px" : "4px",
+                backgroundColor: msg.isOwn ? "#d4a373" : "#f1f1f1",
+                color: msg.isOwn ? "#ffffff" : "#333",
+                borderBottomRightRadius: msg.isOwn ? "4px" : "16px",
+                borderBottomLeftRadius: msg.isOwn ? "16px" : "4px",
               }}
             >
               {msg.message}

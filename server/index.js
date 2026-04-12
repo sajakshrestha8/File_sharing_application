@@ -143,6 +143,8 @@ wss.on("connection", (ws) => {
   sockets[ws.id] = ws;
   console.log(`Connected: ${ws.id} | Total: ${Object.keys(sockets).length}`);
 
+  ws.send(JSON.stringify({ type: "identify", clientId: ws.id }));
+
   ws.on("close", async () => {
     console.log(`Disconnected: ${ws.id}`);
     delete sockets[ws.id];
@@ -158,6 +160,7 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("message", async (msg, isBinary) => {
+    console.log("Yesma trigger hunxa ki nai");
     if (isBinary) {
       console.warn("Binary message received - ignored (use HTTP upload)");
       return;

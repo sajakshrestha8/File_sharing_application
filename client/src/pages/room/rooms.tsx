@@ -13,9 +13,10 @@ export interface FileInfo {
 
 function Room() {
   const { slug } = useParams();
-  const { ws, isReady } = useWebSocket();
+  const { ws, isReady, clientId } = useWebSocket();
 
-  const [message, setMessage] = useState("");
+  console.log({ clientId });
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connected, setConnected] = useState(false);
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
@@ -56,9 +57,15 @@ function Room() {
       }
 
       if (data.type === "message") {
+        console.log("Type message ho ta");
         setMessages((prev) => [
           ...prev,
-          { id: crypto.randomUUID(), message: data.message, from: data.from },
+          {
+            id: crypto.randomUUID(),
+            message: data.message,
+            from: data.from,
+            isOwn: data.from === clientId,
+          },
         ]);
       }
     };
@@ -70,10 +77,11 @@ function Room() {
     };
   }, [isReady, slug]);
 
-  const sendMessage = () => {
+  console.log({ messages });
+
+  const sendMessage = (message: string) => {
     if (!message.trim() || !ws.current) return;
     ws.current.send(JSON.stringify({ type: "message", message, roomId: slug }));
-    setMessage("");
   };
 
   const downloadFile = async (url: string, fileName: string) => {
@@ -99,23 +107,6 @@ function Room() {
 
   return (
     <div className="dashboard-container">
-      {/* <aside className="sidebar">
-        <div className="logo">
-          <h2>
-            Cloud<span>Drop</span>
-          </h2>
-        </div>
-        <div className="room-info">
-          <label>Room ID</label>
-          <div className="room-badge">{slug || "Unknown"}</div>
-        </div>
-        <div className="room-info">
-          <label>Status</label>
-          <div className="room-badge">
-            {connected ? "🟢 Connected" : "🔴 Connecting..."}
-          </div>
-        </div>
-      </aside> */}
       <RoomSidebar roomId={slug} isConnected={connected} peerCount={2} />
 
       <main className="main-content">
@@ -170,28 +161,10 @@ function Room() {
             )}
           </div>
 
-          {/* <div className="feed-card">
-            <div className="feed-card-header">
-              <h3>Room Chat</h3>
-            </div>
-
-            <div className="feed-list">
-              {messages.length === 0 ? (
-                <div className="feed-empty">
-                  <span className="feed-empty-icon">📭</span>
-                  No messages yet
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <div key={msg.id} className="feed-item">
-                    <span className="feed-from">{msg.from?.slice(0, 8)}:</span>
-                    <span className="feed-message">{msg.message}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div> */}
-          <RoomChat initialMessages={messages} onSendMessage={sendMessage} />
+          <RoomChat
+            initialMessages={messages}
+            onSendMessage={(message) => sendMessage(message)}
+          />
         </section>
       </main>
     </div>
