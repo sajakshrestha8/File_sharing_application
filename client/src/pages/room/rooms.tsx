@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useWebSocket } from "../../context/websocket.context";
 import RoomSidebar from "../../components/RoomSideBar/RoomSideBar";
 import RoomChat, { ChatMessage } from "../../components/RoomChat/RoomChat";
@@ -14,8 +14,7 @@ export interface FileInfo {
 function Room() {
   const { slug } = useParams();
   const { ws, isReady, clientId } = useWebSocket();
-
-  console.log({ clientId });
+  const navigate = useNavigate();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [connected, setConnected] = useState(false);
@@ -107,7 +106,12 @@ function Room() {
 
   return (
     <div className="dashboard-container">
-      <RoomSidebar roomId={slug} isConnected={connected} peerCount={2} />
+      <RoomSidebar
+        roomId={slug}
+        isConnected={connected}
+        peerCount={2}
+        handleLeaveRoom={() => navigate("/")}
+      />
 
       <main className="main-content">
         <header className="top-bar">

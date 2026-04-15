@@ -5,9 +5,15 @@ interface RoomSidebarProps {
   roomId: string | undefined;
   isConnected: boolean;
   peerCount: number;
+  handleLeaveRoom: () => void;
 }
 
-const RoomSidebar = ({ roomId, isConnected, peerCount }: RoomSidebarProps) => {
+const RoomSidebar = ({
+  roomId,
+  isConnected,
+  peerCount,
+  handleLeaveRoom,
+}: RoomSidebarProps) => {
   const copyRoomId = () => {
     if (!roomId) return;
     navigator.clipboard.writeText(roomId);
@@ -160,6 +166,7 @@ const RoomSidebar = ({ roomId, isConnected, peerCount }: RoomSidebarProps) => {
           onMouseOut={(e) =>
             (e.currentTarget.style.backgroundColor = "transparent")
           }
+          onClick={handleLeaveRoom}
         >
           Leave Room
         </button>
