@@ -6,7 +6,7 @@ on:
       - main
 
 run: echo "Host is $EC2_HOST"
-run: echo "Host is $secrets.EC2_HOST"
+  echo "Host is $secrets.EC2_HOST"
 
 jobs:
   deploy:
