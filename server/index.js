@@ -9,6 +9,7 @@ const multer = require("multer");
 const path = require("path");
 const cors = require("cors");
 const setupSwagger = require("./utils/swagger");
+const { logger } = require("./utils/logger");
 
 const app = express();
 const PORT = 8080;
@@ -46,6 +47,11 @@ app.use(
 );
 
 const sockets = {};
+
+app.get("/", async (req, res) => {
+  logger.info("Welcome to the root page");
+  res.send("Hello From the server");
+});
 
 app.post("/register", async (req, res) => {
   try {
