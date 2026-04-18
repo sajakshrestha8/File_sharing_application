@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+run: echo "Host is $EC2_HOST"
+run: echo "Host is $secrets.EC2_HOST"
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
