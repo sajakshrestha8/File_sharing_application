@@ -15,12 +15,12 @@ A full-stack application for **real-time room-based file sharing** and **chat**.
 
 ## Tech Stack
 
-| Layer        | Technologies |
-|-------------|--------------|
+| Layer        | Technologies                                 |
+| ------------ | -------------------------------------------- |
 | **Frontend** | React 19, TypeScript, Vite 6, React Router 7 |
 | **Backend**  | Node.js, Express 5, TypeScript, `ws`, Multer |
-| **Data**     | PostgreSQL (Prisma ORM), Redis |
-| **Auth**     | bcrypt |
+| **Data**     | PostgreSQL (Prisma ORM), Redis               |
+| **Auth**     | bcrypt                                       |
 
 ---
 
@@ -64,11 +64,11 @@ For detailed backend boundaries, layers, and HTTP/WebSocket contracts, see **[se
 
 Create `server/.env` (or export variables in your shell):
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string for Prisma | `postgresql://user:pass@localhost:5432/filesharing` |
-| `PORT` | HTTP + WebSocket listen port (optional) | `8080` |
-| `PUBLIC_BASE_URL` | Base URL used in file download links (optional; defaults to `http://localhost:{PORT}`) | `http://localhost:8080` |
+| Variable          | Description                                                                            | Example                                             |
+| ----------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `DATABASE_URL`    | PostgreSQL connection string for Prisma                                                | `postgresql://user:pass@localhost:5432/filesharing` |
+| `PORT`            | HTTP + WebSocket listen port (optional)                                                | `8080`                                              |
+| `PUBLIC_BASE_URL` | Base URL used in file download links (optional; defaults to `http://localhost:{PORT}`) | `http://localhost:8080`                             |
 
 Redis is configured in `server/redisClient/redisClient.js` (default `redis://localhost:6379`). Adjust there or refactor to env if you deploy to another host.
 
@@ -99,7 +99,7 @@ npx prisma generate
 
 Start Redis locally (e.g. `redis-server`) so it matches the URL in `server/redisClient/redisClient.js`.
 
-### 4. Run the backend
+### 4. Run the server
 
 ```bash
 cd server
@@ -110,7 +110,7 @@ npm run build && npm start
 
 Default URL: **http://localhost:8080** (HTTP and WebSocket on the same port).
 
-### 5. Run the frontend
+### 5. Run the client
 
 ```bash
 cd client
@@ -121,25 +121,28 @@ Open the URL Vite prints (typically **http://localhost:5173**). The client is co
 
 ---
 
+## Swagger docs
+
+**http://localhost:8080/api-docs**
+
 ## Scripts
 
 ### Server (`server/package.json`)
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Dev server with reload (`ts-node`, watches `src/`) |
-| `npm run build` | Compile TypeScript to `server/dist/` |
-| `npm start` | Runs `prestart` (build) then `node dist/main.js` |
-| `npm run start:legacy` | Legacy monolithic entry (if present) |
+| Script          | Description                                        |
+| --------------- | -------------------------------------------------- |
+| `npm run dev`   | Dev server with reload (`ts-node`, watches `src/`) |
+| `npm run build` | Compile TypeScript to `server/dist/`               |
+| `npm start`     | Runs `prestart` (build) then `node dist/main.js`   |
 
 ### Client (`client/package.json`)
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Vite dev server |
-| `npm run build` | Typecheck + production build |
-| `npm run preview` | Preview production build |
-| `npm run lint` | ESLint |
+| Script            | Description                  |
+| ----------------- | ---------------------------- |
+| `npm run dev`     | Vite dev server              |
+| `npm run build`   | Typecheck + production build |
+| `npm run preview` | Preview production build     |
+| `npm run lint`    | ESLint                       |
 
 ---
 
@@ -149,15 +152,15 @@ The backend intentionally keeps a **stable** HTTP and WebSocket contract for the
 
 **HTTP**
 
-- `POST /register` — Register user  
-- `POST /login` — Login  
-- `POST /files/upload` — Multipart: `file`, `roomId`  
-- `GET /files/:filename` — Download stored file  
+- `POST /register` — Register user
+- `POST /login` — Login
+- `POST /files/upload` — Multipart: `file`, `roomId`
+- `GET /files/:filename` — Download stored file
 - Static files under `/uploadedFiles/`
 
 **WebSocket** (JSON messages)
 
-- Client → server: `createRoom`, `join`, `message`  
+- Client → server: `createRoom`, `join`, `message`
 - Server → client: `room-created`, `join-ack`, `message`, `file-ready`, `error`
 
 Full request/response shapes are documented in **[server/architecture.md](server/architecture.md)**.

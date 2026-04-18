@@ -8,12 +8,14 @@ const fs = require("fs");
 const multer = require("multer");
 const path = require("path");
 const cors = require("cors");
+const setupSwagger = require("./utils/swagger");
 
 const app = express();
 const PORT = 8080;
 
 app.use(express.json());
 app.use(cors());
+setupSwagger(app, PORT);
 
 const uploadDir = "./uploadedFiles";
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
