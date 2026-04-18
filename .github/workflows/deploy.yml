@@ -5,14 +5,14 @@ on:
     branches:
       - main
 
-run: echo "Host is $EC2_HOST"
-  echo "Host is $secrets.EC2_HOST"
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Debug EC2 Host
+        run: echo "Host is ${{ secrets.EC2_HOST }}"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
